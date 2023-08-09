@@ -14,7 +14,8 @@ type packet struct {
 }
 
 type basicConn struct {
-	*net.UDPConn
+	net.PacketConn
+	UDPConn     *net.UDPConn
 	isClient    bool
 	packetChan  chan *packet
 	rAddr       net.Addr
@@ -29,6 +30,13 @@ func NewServerConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, s
 func NewClientConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, rAddr net.Addr, seq byte) *basicConn {
 	return &basicConn{UDPConn: conn, isClient: true, lAddr: NewAddr(lAddr, seq), writeToFunc: writeToFunc, packetChan: make(chan *packet), rAddr: rAddr, seq: seq}
 }
+func (c *basicConn) SetReadBuffer(bytes int) error {
+	return c.UDPConn.SetReadBuffer(bytes)
+}
+func (c *basicConn) SetWriteBuffer(bytes int) error {
+	return c.UDPConn.SetWriteBuffer(bytes)
+}
+
 func (c *basicConn) handlePacket(packet *packet) {
 	c.packetChan <- packet
 }
@@ -41,12 +49,7 @@ func (c *basicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 
 func (c *basicConn) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
 	if c.isClient {
-		switch addr.(type) {
-		case *net.UDPAddr:
-			{
-				addr = NewAddr(addr, c.seq)
-			}
-		}
+		addr = NewAddr(addr, c.seq)
 	}
 	return c.writeToFunc(ps, addr)
 }

@@ -22,7 +22,7 @@ func (bs *baseServer) getBasicConn(b byte, addr net.Addr) (*basicConn, net.Addr,
 }
 func (bs *baseServer) run() {
 	for {
-		data := make([]byte, 1472)
+		data := make([]byte, 1452)
 		to, addr, err := bs.udpConn.ReadFrom(data)
 		if err != nil {
 			return
