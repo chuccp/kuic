@@ -1,7 +1,6 @@
 package net
 
 import (
-	"log"
 	"net"
 )
 
@@ -23,31 +22,37 @@ func (bs *baseServer) getBasicConn(b byte, addr net.Addr) (*basicConn, net.Addr,
 }
 func (bs *baseServer) run() {
 	for {
-		data := make([]byte, 1024)
+		data := make([]byte, 1472)
 		to, addr, err := bs.udpConn.ReadFrom(data)
 		if err != nil {
 			return
 		} else {
 			bb, rAddr, ok := bs.getBasicConn(data[0], addr)
-			log.Println(bb, rAddr, ok)
 			if ok {
 				bb.handlePacket(&packet{num: to - 1, addr: rAddr, err: err, data: data[1:]})
 			}
 		}
 	}
 }
+
+func (bs *baseServer) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
+	a := addr.(*Addr)
+	seq := a.seq
+	data := append([]byte{seq}, ps...)
+	return bs.udpConn.WriteTo(data, a.Addr)
+}
 func (bs *baseServer) getServerConn() *basicConn {
 	cn, ok := bs.basicConnMap[0]
 	if ok {
 		return cn
 	}
-	bc := NewServerConn(bs.udpConn)
+	bc := NewServerConn(bs.udpConn, bs.WriteTo, bs.udpConn.LocalAddr(), 0)
 	bs.basicConnMap[0] = bc
 	return bc
 }
 func (bs *baseServer) getClientConn(addr *net.UDPAddr) *basicConn {
 	bs.index++
-	cc := NewClientConn(bs.udpConn, NewAddr(addr, bs.index&0x7F))
+	cc := NewClientConn(bs.udpConn, bs.WriteTo, bs.udpConn.LocalAddr(), addr, bs.index)
 	bs.basicConnMap[bs.index] = cc
 	return cc
 }

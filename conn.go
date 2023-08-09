@@ -1,9 +1,10 @@
 package net
 
 import (
-	"log"
 	"net"
 )
+
+type WriteToFunc func(ps []byte, addr net.Addr) (n int, err error)
 
 type packet struct {
 	data []byte
@@ -13,48 +14,42 @@ type packet struct {
 }
 
 type basicConn struct {
-	net.PacketConn
-	isClient   bool
-	packetChan chan *packet
-	reAddr     *Addr
+	*net.UDPConn
+	isClient    bool
+	packetChan  chan *packet
+	rAddr       net.Addr
+	lAddr       *Addr
+	seq         byte
+	writeToFunc WriteToFunc
 }
 
-func NewServerConn(conn net.PacketConn) *basicConn {
-	return &basicConn{isClient: false, PacketConn: conn, packetChan: make(chan *packet)}
+func NewServerConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, seq byte) *basicConn {
+	return &basicConn{UDPConn: conn, isClient: false, lAddr: NewAddr(lAddr, seq), writeToFunc: writeToFunc, packetChan: make(chan *packet), seq: seq}
 }
-func NewClientConn(conn net.PacketConn, reAddr *Addr) *basicConn {
-	return &basicConn{isClient: true, PacketConn: conn, packetChan: make(chan *packet), reAddr: reAddr}
+func NewClientConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, rAddr net.Addr, seq byte) *basicConn {
+	return &basicConn{UDPConn: conn, isClient: true, lAddr: NewAddr(lAddr, seq), writeToFunc: writeToFunc, packetChan: make(chan *packet), rAddr: rAddr, seq: seq}
 }
 func (c *basicConn) handlePacket(packet *packet) {
-	log.Println("handlePacket", "00000000", c)
 	c.packetChan <- packet
-	log.Println("handlePacket", "1111111", c)
 }
 
 func (c *basicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	log.Println("ReadFrom", "00000000", c)
 	packet := <-c.packetChan
-	log.Println("ReadFrom", "11111111", c)
 	copy(p, packet.data)
 	return packet.num, packet.addr, packet.err
 }
 
 func (c *basicConn) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
-	a := addr.(*Addr)
-	seq := a.seq
-	data := append([]byte{seq}, ps...)
-	log.Println(seq, string(ps))
-	return c.PacketConn.WriteTo(data, a.Addr)
-}
-func (c *basicConn) Write(p []byte) (n int, err error) {
 	if c.isClient {
-		return c.WriteTo(p, c.reAddr)
+		switch addr.(type) {
+		case *net.UDPAddr:
+			{
+				addr = NewAddr(addr, c.seq)
+			}
+		}
 	}
-	return 0, err
-}
-func (c *basicConn) Close() error {
-	return nil
+	return c.writeToFunc(ps, addr)
 }
 func (c *basicConn) LocalAddr() net.Addr {
-	return nil
+	return c.lAddr
 }
