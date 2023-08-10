@@ -12,10 +12,12 @@ import (
 	"github.com/quic-go/quic-go"
 	"math/big"
 	"net"
+	"sync"
 )
 
 type seqStack struct {
-	l *list.List
+	l      *list.List
+	locker *sync.Mutex
 }
 
 var ErrConnNumOver = errors.New("conn number Over")
@@ -28,6 +30,8 @@ func (s *seqStack) init() {
 }
 
 func (s *seqStack) pop() (byte, error) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
 	if s.l.Len() == 0 {
 		return 0, ErrConnNumOver
 	}
@@ -35,11 +39,13 @@ func (s *seqStack) pop() (byte, error) {
 }
 
 func (s *seqStack) push(seq byte) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
 	s.l.PushBack(seq)
 }
 
 func newSeqStack() *seqStack {
-	seqStack := &seqStack{l: new(list.List)}
+	seqStack := &seqStack{l: new(list.List), locker: new(sync.Mutex)}
 	seqStack.init()
 	return seqStack
 }
@@ -51,11 +57,16 @@ type baseServer struct {
 	seqStack     *seqStack
 	context      context.Context
 	listener     *quic.Listener
+	locker       *sync.Mutex
 }
 
 func createBaseServer(udpConn *net.UDPConn, context context.Context) (*baseServer, error) {
-	baseServer := &baseServer{udpConn: udpConn, basicConnMap: make(map[byte]*basicConn), seqStack: newSeqStack(), context: context}
-	listen, err := quic.Listen(baseServer.getServerConn(), generateTLSConfig(), nil)
+	baseServer := &baseServer{udpConn: udpConn, basicConnMap: make(map[byte]*basicConn), seqStack: newSeqStack(), context: context, locker: new(sync.Mutex)}
+	conn, err := baseServer.getServerConn()
+	if err != nil {
+		return nil, err
+	}
+	listen, err := quic.Listen(conn, generateTLSConfig(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -93,13 +104,15 @@ func (bs *baseServer) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
 	data := append([]byte{seq}, ps...)
 	return bs.udpConn.WriteTo(data, a.Addr)
 }
-func (bs *baseServer) getServerConn() *basicConn {
+func (bs *baseServer) getServerConn() (*basicConn, error) {
+	bs.locker.Lock()
+	defer bs.locker.Unlock()
 	if bs.serverConn != nil {
-		return bs.serverConn
+		return bs.serverConn, errors.New(" only can get once")
 	}
 	bc := NewServerConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), 0), bs.context)
 	bs.serverConn = bc
-	return bc
+	return bc, nil
 }
 func (bs *baseServer) close() error {
 	return bs.listener.Close()
