@@ -16,6 +16,7 @@ type baseServer struct {
 	udpConn      *net.UDPConn
 	basicConnMap map[byte]*basicConn
 	index        byte
+	context      context.Context
 }
 
 func (bs *baseServer) getBasicConn(b byte, addr net.Addr) (*basicConn, net.Addr, bool) {
@@ -54,13 +55,13 @@ func (bs *baseServer) getServerConn() *basicConn {
 	if ok {
 		return cn
 	}
-	bc := NewServerConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), 0))
+	bc := NewServerConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), 0), bs.context)
 	bs.basicConnMap[0] = bc
 	return bc
 }
 func (bs *baseServer) getClientConn(addr *net.UDPAddr) (*basicConn, error) {
 	bs.index++
-	cc := NewClientConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), bs.index|0x80), NewAddr(addr, bs.index))
+	cc := NewClientConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), bs.index|0x80), NewAddr(addr, bs.index), bs.context)
 	bs.basicConnMap[bs.index] = cc
 	return cc, nil
 }
@@ -124,19 +125,20 @@ func (l *Listener) Dial(addr *net.UDPAddr) (Connection, error) {
 }
 func (l *Listener) Close() error {
 	l.cancelFunc()
-	return l.listener.Close()
+	err := l.listener.Close()
+	return err
 }
 func Listen(addr *net.UDPAddr) (*Listener, error) {
 	udpConn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		return nil, err
 	}
-	baseServer := &baseServer{udpConn: udpConn, basicConnMap: make(map[byte]*basicConn)}
+	context, contextCancelFunc := context.WithCancel(context.Background())
+	baseServer := &baseServer{udpConn: udpConn, basicConnMap: make(map[byte]*basicConn), context: context}
 	quicListener, err := quic.Listen(baseServer.getServerConn(), generateTLSConfig(), nil)
 	if err != nil {
 		return nil, err
 	}
-	context, contextCancelFunc := context.WithCancel(context.Background())
 	listener := &Listener{baseServer, quicListener, context, contextCancelFunc}
 	go baseServer.run()
 	return listener, nil

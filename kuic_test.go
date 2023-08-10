@@ -4,7 +4,6 @@ import (
 	"log"
 	"net"
 	"testing"
-	"time"
 )
 
 func TestName2(t *testing.T) {
@@ -45,5 +44,7 @@ func TestName2(t *testing.T) {
 	}
 	sync.Write([]byte("22222222222222222"))
 
-	time.Sleep(time.Second * 10)
+	listen.Close()
+
+	//time.Sleep(time.Second * 2)
 }
