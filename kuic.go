@@ -90,9 +90,9 @@ func (bs *baseServer) run() {
 		if err != nil {
 			return
 		} else {
-			bb, rAddr, ok := bs.getBasicConn(data[0], addr)
+			bb, rAddr, ok := bs.getBasicConn(data[to-1], addr)
 			if ok {
-				bb.handlePacket(&packet{num: to - 1, addr: rAddr, err: err, data: data[1:]})
+				bb.handlePacket(&packet{num: to - 1, addr: rAddr, err: err, data: data})
 			}
 		}
 	}
@@ -101,7 +101,7 @@ func (bs *baseServer) run() {
 func (bs *baseServer) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
 	a := addr.(*Addr)
 	seq := a.seq
-	data := append([]byte{seq}, ps...)
+	data := append(ps, seq)
 	return bs.udpConn.WriteTo(data, a.Addr)
 }
 func (bs *baseServer) getServerConn() (*basicConn, error) {
