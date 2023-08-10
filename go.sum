@@ -1,5 +1,5 @@
-github.com/chuccp/quic-go v0.0.0-20230810070006-ef261fb5a5de h1:7zJ1Q5T0up5TsWCsm8PCbEgO49kJMuJGFuRMAKjWyq8=
-github.com/chuccp/quic-go v0.0.0-20230810070006-ef261fb5a5de/go.mod h1:YsbH1r4mSHPJcLF4k4zruUkLBqctEMBDR6VPvcYjIsU=
+github.com/chuccp/quic-go v0.0.1 h1:RkEDGl78j+OatUbfIfyfCOV5PDotltPelWxnohE6wx0=
+github.com/chuccp/quic-go v0.0.1/go.mod h1:YzgxaRxjn5mS2zOWvDJ9nIdHoL9P7Efy61EfqOMO1rI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -14,7 +14,7 @@ github.com/google/pprof v0.0.0-20230808223545-4887780b67fb h1:oqpb3Cwpc7EOml5PVG
 github.com/google/pprof v0.0.0-20230808223545-4887780b67fb/go.mod h1:Jh3hGz2jkYak8qXPD19ryItVnUgpgeqzdkY/D0EaeuA=
 github.com/onsi/ginkgo/v2 v2.11.0 h1:WgqUCUt/lT6yXoQ8Wef0fsNn5cAuMK7+KT9UFRz2tcU=
 github.com/onsi/ginkgo/v2 v2.11.0/go.mod h1:ZhrRA5XmEE3x3rhlzamx/JJvujdZoJ2uvgI7kR0iZvM=
-github.com/onsi/gomega v1.27.8 h1:gegWiwZjBsf2DgiSbf5hpokZ98JVDMcWkUiigk6/KXc=
+github.com/onsi/gomega v1.27.10 h1:naR28SdDFlqrG6kScpT8VWpu1xWY5nJRCF3XaYyBjhI=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/quic-go/qtls-go1-20 v0.3.2 h1:rRgN3WfnKbyik4dBV8A6girlJVxGand/d+jVKbQq5GI=
