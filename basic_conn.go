@@ -49,7 +49,6 @@ func (c *basicConn) handlePacket(packet *packet) {
 }
 
 func (c *basicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-
 	select {
 	case packet := <-c.packetChan:
 		{
@@ -60,7 +59,6 @@ func (c *basicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 		return 0, nil, net.ErrClosed
 
 	}
-
 }
 
 func (c *basicConn) WriteTo(ps []byte, addr net.Addr) (n int, err error) {

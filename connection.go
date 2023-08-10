@@ -8,12 +8,16 @@ import (
 type Connection interface {
 	AcceptStream() (quic.Stream, error)
 	OpenStreamSync() (quic.Stream, error)
+	Close() error
 }
 type connection struct {
 	connection quic.Connection
 	context    context.Context
 }
 
+func (connection *connection) Close() error {
+	return connection.connection.CloseWithError(0, "")
+}
 func (connection *connection) AcceptStream() (quic.Stream, error) {
 	return connection.connection.AcceptStream(connection.context)
 }

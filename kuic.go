@@ -1,31 +1,74 @@
 package kuic
 
 import (
+	"container/list"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"github.com/quic-go/quic-go"
 	"math/big"
 	"net"
 )
 
+type seqStack struct {
+	l *list.List
+}
+
+var ErrConnNumOver = errors.New("conn number Over")
+
+func (s *seqStack) init() {
+	num := int(MaxSeqNum)
+	for i := 0; i <= num; i++ {
+		s.l.PushBack(byte(i))
+	}
+}
+
+func (s *seqStack) pop() (byte, error) {
+	if s.l.Len() == 0 {
+		return 0, ErrConnNumOver
+	}
+	return s.l.Front().Value.(byte), nil
+}
+
+func (s *seqStack) push(seq byte) {
+	s.l.PushBack(seq)
+}
+
+func newSeqStack() *seqStack {
+	seqStack := &seqStack{l: new(list.List)}
+	seqStack.init()
+	return seqStack
+}
+
 type baseServer struct {
 	udpConn      *net.UDPConn
 	basicConnMap map[byte]*basicConn
-	index        byte
+	serverConn   *basicConn
+	seqStack     *seqStack
 	context      context.Context
+	listener     *quic.Listener
 }
 
+func createBaseServer(udpConn *net.UDPConn, context context.Context) (*baseServer, error) {
+	baseServer := &baseServer{udpConn: udpConn, basicConnMap: make(map[byte]*basicConn), seqStack: newSeqStack(), context: context}
+	listen, err := quic.Listen(baseServer.getServerConn(), generateTLSConfig(), nil)
+	if err != nil {
+		return nil, err
+	}
+	baseServer.listener = listen
+	go baseServer.run()
+	return baseServer, nil
+}
 func (bs *baseServer) getBasicConn(b byte, addr net.Addr) (*basicConn, net.Addr, bool) {
 	isServer := b&0x80 == 0
 	if isServer {
-		bc, ok := bs.basicConnMap[0]
-		return bc, NewAddr(addr, b|0x80), ok
+		return bs.serverConn, NewAddr(addr, b|0x80), bs.serverConn != nil
 	} else {
-		bc, ok := bs.basicConnMap[b&0x7F]
+		bc, ok := bs.basicConnMap[b]
 		return bc, NewAddr(addr, b&0x7F), ok
 	}
 }
@@ -51,24 +94,51 @@ func (bs *baseServer) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
 	return bs.udpConn.WriteTo(data, a.Addr)
 }
 func (bs *baseServer) getServerConn() *basicConn {
-	cn, ok := bs.basicConnMap[0]
-	if ok {
-		return cn
+	if bs.serverConn != nil {
+		return bs.serverConn
 	}
 	bc := NewServerConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), 0), bs.context)
-	bs.basicConnMap[0] = bc
+	bs.serverConn = bc
 	return bc
 }
-func (bs *baseServer) getClientConn(addr *net.UDPAddr) (*basicConn, error) {
-	bs.index++
-	cc := NewClientConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), bs.index|0x80), NewAddr(addr, bs.index), bs.context)
-	bs.basicConnMap[bs.index] = cc
-	return cc, nil
+func (bs *baseServer) close() error {
+	return bs.listener.Close()
+}
+
+func (bs *baseServer) accept() (Connection, error) {
+	conn, err := bs.listener.Accept(bs.context)
+	if err != nil {
+		return nil, err
+	}
+	return createConnection(conn, bs.context), nil
+}
+
+func (bs *baseServer) dial(rAddr *net.UDPAddr) (Connection, error) {
+	seq, err := bs.seqStack.pop()
+	if err != nil {
+		return nil, err
+	}
+	lSeq := seq | 0x80
+	clientConn := NewClientConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), lSeq), NewAddr(rAddr, seq), bs.context)
+	bs.basicConnMap[lSeq] = clientConn
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"kuic"},
+	}
+	conn, err := quic.Dial(bs.context, clientConn, clientConn.rAddr, tlsConf, nil)
+	if err != nil {
+		bs.seqStack.push(seq)
+		return nil, err
+	}
+	go func() {
+		<-conn.Context().Done()
+		bs.seqStack.push(seq)
+	}()
+	return createConnection(conn, bs.context), nil
 }
 
 type Listener struct {
 	baseServer *baseServer
-	listener   *quic.Listener
 	context    context.Context
 	cancelFunc context.CancelFunc
 }
@@ -97,36 +167,15 @@ func generateTLSConfig() *tls.Config {
 }
 
 func (l *Listener) Accept() (Connection, error) {
-	conn, err := l.listener.Accept(l.context)
-	if err != nil {
-		return nil, err
-	}
-	return createConnection(conn, l.context), nil
-}
-
-func (l *Listener) getClientConn(rAddr *net.UDPAddr) (*basicConn, error) {
-	return l.baseServer.getClientConn(rAddr)
+	return l.baseServer.accept()
 }
 
 func (l *Listener) Dial(addr *net.UDPAddr) (Connection, error) {
-	tlsConf := &tls.Config{
-		InsecureSkipVerify: true,
-		NextProtos:         []string{"kuic"},
-	}
-	bc, err := l.getClientConn(addr)
-	if err != nil {
-		return nil, err
-	}
-	conn, err := quic.Dial(l.context, bc, bc.rAddr, tlsConf, nil)
-	if err != nil {
-		return nil, err
-	}
-	return createConnection(conn, l.context), nil
+	return l.baseServer.dial(addr)
 }
 func (l *Listener) Close() error {
 	l.cancelFunc()
-	err := l.listener.Close()
-	return err
+	return l.baseServer.close()
 }
 func Listen(addr *net.UDPAddr) (*Listener, error) {
 	udpConn, err := net.ListenUDP("udp", addr)
@@ -134,12 +183,10 @@ func Listen(addr *net.UDPAddr) (*Listener, error) {
 		return nil, err
 	}
 	context, contextCancelFunc := context.WithCancel(context.Background())
-	baseServer := &baseServer{udpConn: udpConn, basicConnMap: make(map[byte]*basicConn), context: context}
-	quicListener, err := quic.Listen(baseServer.getServerConn(), generateTLSConfig(), nil)
+	baseServer, err := createBaseServer(udpConn, context)
 	if err != nil {
 		return nil, err
 	}
-	listener := &Listener{baseServer, quicListener, context, contextCancelFunc}
-	go baseServer.run()
+	listener := &Listener{baseServer, context, contextCancelFunc}
 	return listener, nil
 }
