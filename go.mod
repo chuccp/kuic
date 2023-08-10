@@ -2,12 +2,11 @@ module github.com/chuccp/kuic
 
 go 1.20
 
-replace github.com/quic-go/quic-go => github.com/chuccp/quic-go v0.0.0-20230809033037-f120e2e00b45
+replace github.com/quic-go/quic-go => github.com/chuccp/quic-go v0.0.0-20230810070006-ef261fb5a5de
 
 require github.com/quic-go/quic-go v0.37.4
 
 require (
-	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/pprof v0.0.0-20230808223545-4887780b67fb // indirect
