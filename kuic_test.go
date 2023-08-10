@@ -27,7 +27,9 @@ func TestName2(t *testing.T) {
 					if err != nil {
 						return
 					}
-					log.Println(string(data[:to]))
+					log.Println("ppp", string(data[:to]))
+
+					stream.Write([]byte("!!!!!!!!!!!!"))
 				}
 			}
 		}()
@@ -44,6 +46,12 @@ func TestName2(t *testing.T) {
 		return
 	}
 	sync.Write([]byte("22222222222222222"))
+	data := make([]byte, MaxPacketBufferSize)
+	to, err := sync.Read(data)
+	if err != nil {
+		return
+	}
+	log.Println("oooo", string(data[:to]))
 
 	//listen.Close()
 
