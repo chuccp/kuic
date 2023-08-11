@@ -33,7 +33,6 @@ func TestName2(t *testing.T) {
 				}
 			}
 		}()
-
 	}
 
 	dial, err := listen.Dial(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1235})

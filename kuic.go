@@ -150,6 +150,47 @@ func (bs *baseServer) dial(rAddr *net.UDPAddr) (Connection, error) {
 	return createConnection(conn, bs.context), nil
 }
 
+func (bs *baseServer) getClientConn(rAddr *net.UDPAddr) (Connection, error) {
+	seq, err := bs.seqStack.pop()
+	if err != nil {
+		return nil, err
+	}
+	lSeq := seq | 0x80
+	clientConn := NewClientConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), lSeq), NewAddr(rAddr, seq), bs.context)
+	bs.basicConnMap[lSeq] = clientConn
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"kuic"},
+	}
+	conn, err := quic.Dial(bs.context, clientConn, clientConn.rAddr, tlsConf, nil)
+	if err != nil {
+		bs.seqStack.push(seq)
+		return nil, err
+	}
+	go func() {
+		select {
+		case <-conn.Context().Done():
+		case <-clientConn.GetContext().Done():
+		}
+		bs.seqStack.push(seq)
+	}()
+	return createConnection(conn, bs.context), nil
+}
+
+func (bs *baseServer) getClientBasicConn(rAddr *net.UDPAddr) (*basicConn, error) {
+	seq, err := bs.seqStack.pop()
+	if err != nil {
+		return nil, err
+	}
+	lSeq := seq | 0x80
+	clientConn := NewClientConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), lSeq), NewAddr(rAddr, seq), bs.context)
+	go func() {
+		clientConn.waitClose()
+		bs.seqStack.push(seq)
+	}()
+	return clientConn, nil
+}
+
 type Listener struct {
 	baseServer *baseServer
 	context    context.Context
@@ -189,6 +230,13 @@ func (l *Listener) Dial(addr *net.UDPAddr) (Connection, error) {
 func (l *Listener) Close() error {
 	l.cancelFunc()
 	return l.baseServer.close()
+}
+
+func (l *Listener) GetServerConn() (*basicConn, error) {
+	return l.baseServer.getServerConn()
+}
+func (l *Listener) GetClientConn(addr *net.UDPAddr) (*basicConn, error) {
+	return l.baseServer.getClientBasicConn(addr)
 }
 func Listen(addr *net.UDPAddr) (*Listener, error) {
 	udpConn, err := net.ListenUDP("udp", addr)
