@@ -14,6 +14,17 @@ type Server struct {
 	baseServer kuic.BaseServer
 }
 
+func (server *Server) GetHttpClient() *http.Client {
+	conn, err := server.baseServer.GetClientConn()
+	if err != nil {
+		return nil
+	}
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	return http3.NewClient(conn, tlsConf)
+}
+
 func (server *Server) Listen(certFile, keyFile string, handler http.Handler) error {
 	conn, err := server.baseServer.GetServerConn()
 	if err != nil {

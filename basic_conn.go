@@ -28,7 +28,7 @@ type basicConn struct {
 	closeCancelFunc context.CancelFunc
 }
 
-func NewServerConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, ctx context.Context) *basicConn {
+func NewBasicConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, ctx context.Context) *basicConn {
 
 	closeContext, closeCancelFunc := context.WithCancel(context.Background())
 
@@ -38,20 +38,6 @@ func NewServerConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, c
 		lAddr:           lAddr,
 		writeToFunc:     writeToFunc,
 		packetChan:      make(chan *packet),
-		context:         ctx,
-		closeContext:    closeContext,
-		closeCancelFunc: closeCancelFunc,
-	}
-}
-func NewClientConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, rAddr net.Addr, ctx context.Context) *basicConn {
-	closeContext, closeCancelFunc := context.WithCancel(context.Background())
-	return &basicConn{
-		UDPConn:         conn,
-		isClient:        true,
-		lAddr:           lAddr,
-		writeToFunc:     writeToFunc,
-		packetChan:      make(chan *packet),
-		rAddr:           rAddr,
 		context:         ctx,
 		closeContext:    closeContext,
 		closeCancelFunc: closeCancelFunc,
