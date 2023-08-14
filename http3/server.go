@@ -1,4 +1,4 @@
-package http3
+package http
 
 import (
 	"context"
@@ -66,7 +66,7 @@ func (server *Server) Listen(certFile, keyFile string, handler http.Handler) err
 	return nil
 }
 
-func createServer(addr string) (*Server, error) {
+func CreateServer(addr string) (*Server, error) {
 	server := &Server{addr: addr}
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {

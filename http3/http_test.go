@@ -1,4 +1,4 @@
-package http3
+package http
 
 import (
 	"github.com/chuccp/kuic/cert"
