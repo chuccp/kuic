@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/quic-go/quic-go"
+	"log"
 	"math/big"
 	"net"
 	"sync"
@@ -50,6 +51,11 @@ func newSeqStack() *seqStack {
 	return seqStack
 }
 
+type BaseServer interface {
+	GetServerConn() (net.PacketConn, error)
+	GetClientConn(rAddr *net.UDPAddr) (net.PacketConn, error)
+}
+
 type baseServer struct {
 	udpConn      *net.UDPConn
 	basicConnMap map[byte]*basicConn
@@ -60,19 +66,10 @@ type baseServer struct {
 	locker       *sync.Mutex
 }
 
-func createBaseServer(udpConn *net.UDPConn, context context.Context) (*baseServer, error) {
+func NewBaseServer(udpConn *net.UDPConn, context context.Context) *baseServer {
 	baseServer := &baseServer{udpConn: udpConn, basicConnMap: make(map[byte]*basicConn), seqStack: newSeqStack(), context: context, locker: new(sync.Mutex)}
-	conn, err := baseServer.getServerConn()
-	if err != nil {
-		return nil, err
-	}
-	listen, err := quic.Listen(conn, generateTLSConfig(), nil)
-	if err != nil {
-		return nil, err
-	}
-	baseServer.listener = listen
 	go baseServer.run()
-	return baseServer, nil
+	return baseServer
 }
 func (bs *baseServer) getBasicConn(b byte, addr net.Addr) (*basicConn, net.Addr, bool) {
 	isServer := b&0x80 == 0
@@ -84,9 +81,11 @@ func (bs *baseServer) getBasicConn(b byte, addr net.Addr) (*basicConn, net.Addr,
 	}
 }
 func (bs *baseServer) run() {
+	log.Println("============================")
 	for {
 		data := make([]byte, MaxPacketBufferSize)
 		to, addr, err := bs.udpConn.ReadFrom(data)
+		log.Println(data[:to])
 		if err != nil {
 			return
 		} else {
@@ -104,7 +103,7 @@ func (bs *baseServer) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
 	data := append(ps, seq)
 	return bs.udpConn.WriteTo(data, a.Addr)
 }
-func (bs *baseServer) getServerConn() (*basicConn, error) {
+func (bs *baseServer) GetServerConn() (net.PacketConn, error) {
 	bs.locker.Lock()
 	defer bs.locker.Unlock()
 	if bs.serverConn != nil {
@@ -177,7 +176,7 @@ func (bs *baseServer) getClientConn(rAddr *net.UDPAddr) (Connection, error) {
 	return createConnection(conn, bs.context), nil
 }
 
-func (bs *baseServer) getClientBasicConn(rAddr *net.UDPAddr) (*basicConn, error) {
+func (bs *baseServer) GetClientConn(rAddr *net.UDPAddr) (net.PacketConn, error) {
 	seq, err := bs.seqStack.pop()
 	if err != nil {
 		return nil, err
@@ -232,11 +231,11 @@ func (l *Listener) Close() error {
 	return l.baseServer.close()
 }
 
-func (l *Listener) GetServerConn() (*basicConn, error) {
-	return l.baseServer.getServerConn()
+func (l *Listener) GetServerConn() (net.PacketConn, error) {
+	return l.baseServer.GetServerConn()
 }
-func (l *Listener) GetClientConn(addr *net.UDPAddr) (*basicConn, error) {
-	return l.baseServer.getClientBasicConn(addr)
+func (l *Listener) GetClientConn(addr *net.UDPAddr) (net.PacketConn, error) {
+	return l.baseServer.GetClientConn(addr)
 }
 func Listen(addr *net.UDPAddr) (*Listener, error) {
 	udpConn, err := net.ListenUDP("udp", addr)
@@ -244,10 +243,16 @@ func Listen(addr *net.UDPAddr) (*Listener, error) {
 		return nil, err
 	}
 	context, contextCancelFunc := context.WithCancel(context.Background())
-	baseServer, err := createBaseServer(udpConn, context)
+	baseServer := NewBaseServer(udpConn, context)
+	conn, err := baseServer.GetServerConn()
 	if err != nil {
 		return nil, err
 	}
+	listen, err := quic.Listen(conn, generateTLSConfig(), nil)
+	if err != nil {
+		return nil, err
+	}
+	baseServer.listener = listen
 	listener := &Listener{baseServer, context, contextCancelFunc}
 	return listener, nil
 }

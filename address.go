@@ -3,6 +3,7 @@ package kuic
 import (
 	"net"
 	"strconv"
+	"strings"
 )
 
 type Addr struct {
@@ -17,5 +18,9 @@ func (a *Addr) Network() string {
 	return a.Addr.Network()
 }
 func (a *Addr) String() string {
-	return a.Addr.String() + "_" + strconv.Itoa(int(a.seq))
+	addr := a.Addr.String()
+	if strings.Contains(addr, "]") {
+		return strings.ReplaceAll(addr, "]", "%"+strconv.Itoa(int(a.seq))+"]")
+	}
+	return addr + "_" + strconv.Itoa(int(a.seq))
 }
