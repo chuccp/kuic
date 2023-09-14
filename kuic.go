@@ -35,7 +35,10 @@ func (s *seqStack) pop() (byte, error) {
 	if s.l.Len() == 0 {
 		return 0, ErrConnNumOver
 	}
-	return s.l.Front().Value.(byte), nil
+
+	ele := s.l.Front()
+	s.l.Remove(ele)
+	return ele.Value.(byte), nil
 }
 
 func (s *seqStack) push(seq byte) {
