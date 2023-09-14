@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/quic-go/quic-go"
-	"log"
 	"math/big"
 	"net"
 	"sync"
@@ -77,15 +76,13 @@ func (bs *baseServer) getBasicConn(b byte, addr net.Addr) (*basicConn, net.Addr,
 		return bs.serverConn, NewAddr(addr, b|0x80), bs.serverConn != nil
 	} else {
 		bc, ok := bs.basicConnMap[b]
-		return bc, NewAddr(addr, b&0x7F), ok
+		return bc, NewAddr(addr, b), ok
 	}
 }
 func (bs *baseServer) run() {
-	log.Println("============================")
 	for {
 		data := make([]byte, MaxPacketBufferSize)
 		to, addr, err := bs.udpConn.ReadFrom(data)
-		log.Println(data[:to])
 		if err != nil {
 			return
 		} else {
@@ -98,6 +95,7 @@ func (bs *baseServer) run() {
 }
 
 func (bs *baseServer) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
+
 	a := addr.(*Addr)
 	seq := a.seq
 	data := append(ps, seq)
@@ -132,6 +130,7 @@ func (bs *baseServer) dial(rAddr *net.UDPAddr) (Connection, error) {
 	}
 	lSeq := seq | 0x80
 	clientConn := NewBasicConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), lSeq), bs.context)
+	clientConn.isClient = true
 	bs.basicConnMap[lSeq] = clientConn
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
@@ -155,6 +154,8 @@ func (bs *baseServer) GetClientConn() (net.PacketConn, error) {
 	}
 	lSeq := seq | 0x80
 	clientConn := NewBasicConn(bs.udpConn, bs.WriteTo, NewAddr(bs.udpConn.LocalAddr(), lSeq), bs.context)
+	clientConn.isClient = true
+	bs.basicConnMap[lSeq] = clientConn
 	go func() {
 		clientConn.waitClose()
 		bs.seqStack.push(seq)

@@ -9,7 +9,7 @@ import (
 
 func TestName2(t *testing.T) {
 
-	listen, err := Listen(&net.UDPAddr{IP: net.IPv4zero, Port: 1235})
+	listen, err := Listen(&net.UDPAddr{IP: net.IPv4(192, 168, 1, 123), Port: 1235})
 	if err != nil {
 		t.Log(err)
 	} else {
@@ -35,7 +35,7 @@ func TestName2(t *testing.T) {
 		}()
 	}
 
-	dial, err := listen.Dial(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1235})
+	dial, err := listen.Dial(&net.UDPAddr{IP: net.IPv4(192, 168, 1, 123), Port: 1235})
 	if err != nil {
 		return
 	}

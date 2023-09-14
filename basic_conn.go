@@ -84,8 +84,20 @@ func (c *basicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 	}
 }
 
-func (c *basicConn) WriteTo(ps []byte, addr net.Addr) (n int, err error) {
-	return c.writeToFunc(ps, addr)
+func (c *basicConn) WriteTo(ps []byte, rAddr net.Addr) (n int, err error) {
+	addr, ok := rAddr.(*net.UDPAddr)
+	if ok {
+		if c.isClient {
+			lAddr := c.lAddr.(*Addr)
+			rAddr := NewAddr(addr, lAddr.seq&0x7F)
+			return c.writeToFunc(ps, rAddr)
+		} else {
+			lAddr := c.lAddr.(*Addr)
+			rAddr := NewAddr(addr, lAddr.seq|0x80)
+			return c.writeToFunc(ps, rAddr)
+		}
+	}
+	return c.writeToFunc(ps, rAddr)
 }
 func (c *basicConn) LocalAddr() net.Addr {
 	return c.lAddr
