@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"github.com/chuccp/kuic"
 	"github.com/quic-go/quic-go/http3"
 	"io"
@@ -61,12 +62,32 @@ func (c *Client) GetRaw(path string) (io.ReadCloser, error) {
 	get, err := c.client.Get(url)
 	return get.Body, err
 }
-func (c *Client) PostJson(path string, json string) (string, error) {
+
+func (c *Client) PostJson(path string, value any) (string, error) {
+	switch i := value.(type) {
+	case string:
+		return c.PostJsonRaw(path, []byte(i))
+	case []byte:
+		return c.PostJsonRaw(path, i)
+	default:
+		marshal, err := json.Marshal(value)
+		if err != nil {
+			return "", err
+		} else {
+			return c.PostJsonRaw(path, marshal)
+		}
+	}
+}
+
+func (c *Client) PostJsonString(path string, json string) (string, error) {
+	return c.PostJsonRaw(path, []byte(json))
+}
+func (c *Client) PostJsonRaw(path string, json []byte) (string, error) {
 	if strings.HasPrefix(path, "/") {
 		path = path[1:]
 	}
 	url := "https://" + c.address + "/" + path
-	body := bytes.NewBufferString(json)
+	body := bytes.NewReader(json)
 	get, err := c.client.Post(url, "application/json", body)
 	all, err := io.ReadAll(get.Body)
 	if err != nil {
