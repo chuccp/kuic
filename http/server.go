@@ -7,29 +7,16 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"net"
 	"net/http"
-	"sync"
 )
 
 type Server struct {
 	addr       string
 	baseServer kuic.BaseServer
-	httpClient *http.Client
-	lock       *sync.RWMutex
+	clientPool *ClientPool
 }
 
-func (server *Server) GetHttpClient() *http.Client {
-	if server.httpClient != nil {
-		return server.httpClient
-	}
-	conn, err := server.baseServer.GetClientConn()
-	if err != nil {
-		return nil
-	}
-	tlsConf := &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	httpClient := http3.NewClient(conn, tlsConf)
-	return httpClient
+func (server *Server) GetHttpClient(address string) (*Client, error) {
+	return server.clientPool.GetHttpClient(address)
 }
 
 func (server *Server) ListenAndServeTLS(certFile, keyFile string, handler http.Handler) error {
@@ -121,6 +108,6 @@ func CreateServer(addr string) (*Server, error) {
 		return nil, err
 	}
 	server.baseServer = kuic.NewBaseServer(udpConn, context.Background())
-	server.lock = new(sync.RWMutex)
+	server.clientPool = NewClientPool(server.baseServer)
 	return server, nil
 }

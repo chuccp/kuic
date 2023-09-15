@@ -3,7 +3,6 @@ package http
 import (
 	"github.com/chuccp/kuic/cert"
 	"github.com/chuccp/kuic/testdata"
-	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -28,17 +27,19 @@ func TestServer(t *testing.T) {
 
 	go func() {
 
-		time.Sleep(2 * time.Second)
-		get, err := server.GetHttpClient().Get("https://192.168.1.123:5565/")
-		if err != nil {
-			t.Fatal(err)
-		}
+		for {
+			time.Sleep(2 * time.Second)
+			get, err := server.GetHttpClient("192.168.1.123:5565")
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		all, err := io.ReadAll(get.Body)
-		if err != nil {
-			t.Fatal(err)
+			all, err := get.Get("/")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(all)
 		}
-		t.Log(string(all))
 
 	}()
 
