@@ -14,10 +14,11 @@ import (
 )
 
 type ClientPool struct {
-	lock       *sync.RWMutex
-	baseServer kuic.BaseServer
-	addressMap map[string]*Client
-	connMap    map[string]net.PacketConn
+	lock            *sync.RWMutex
+	baseServer      kuic.BaseServer
+	addressMap      map[string]*Client
+	connMap         map[string]net.PacketConn
+	reverseProxyMap map[string]*ReverseProxy
 }
 
 func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
@@ -34,6 +35,26 @@ func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
 	client = NewClient(address, conn)
 	cp.addressMap[address] = client
 	return client, nil
+}
+func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	client, ok := cp.reverseProxyMap[address]
+	if ok {
+		return client, nil
+	}
+	conn, err := cp.getClientConn(address)
+	if err != nil {
+		return nil, err
+	} else {
+		proxy, err := NewReverseProxy(address, conn)
+		if err != nil {
+			return nil, err
+		}
+		cp.reverseProxyMap[address] = proxy
+		return proxy, err
+	}
+
 }
 func (cp *ClientPool) GetClientConn(address string) (net.PacketConn, error) {
 	cp.lock.Lock()
@@ -54,7 +75,7 @@ func (cp *ClientPool) getClientConn(address string) (net.PacketConn, error) {
 }
 
 func NewClientPool(baseServer kuic.BaseServer) *ClientPool {
-	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]net.PacketConn)}
+	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]net.PacketConn), reverseProxyMap: make(map[string]*ReverseProxy)}
 }
 
 type Client struct {

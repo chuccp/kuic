@@ -20,7 +20,7 @@ func (server *Server) GetHttpClient(address string) (*Client, error) {
 }
 
 func (server *Server) GetReverseProxy(address string) (*ReverseProxy, error) {
-	conn, err := server.baseServer.GetClientConn()
+	conn, err := server.clientPool.GetClientConn(address)
 	if err != nil {
 		return nil, err
 	} else {
