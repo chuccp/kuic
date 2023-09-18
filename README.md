@@ -3,4 +3,4 @@
 
 使用前可能需要
 
-go mod edit -replace github.com/quic-go/quic-go=github.com/chuccp/quic-go@v0.0.2
+go mod edit -replace github.com/quic-go/quic-go=github.com/chuccp/quic-go@v0.0.4
