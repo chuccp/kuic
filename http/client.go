@@ -17,6 +17,7 @@ type ClientPool struct {
 	lock       *sync.RWMutex
 	baseServer kuic.BaseServer
 	addressMap map[string]*Client
+	connMap    map[string]net.PacketConn
 }
 
 func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
@@ -26,18 +27,34 @@ func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.baseServer.GetClientConn()
+	conn, err := cp.getClientConn(address)
 	if err != nil {
 		return nil, err
 	}
 	client = NewClient(address, conn)
 	cp.addressMap[address] = client
 	return client, nil
-
+}
+func (cp *ClientPool) GetClientConn(address string) (net.PacketConn, error) {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	return cp.getClientConn(address)
+}
+func (cp *ClientPool) getClientConn(address string) (net.PacketConn, error) {
+	conn, ok := cp.connMap[address]
+	if ok {
+		return conn, nil
+	}
+	conn, err := cp.baseServer.GetClientConn()
+	if err != nil {
+		return nil, err
+	}
+	cp.connMap[address] = conn
+	return conn, nil
 }
 
 func NewClientPool(baseServer kuic.BaseServer) *ClientPool {
-	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client)}
+	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]net.PacketConn)}
 }
 
 type Client struct {
