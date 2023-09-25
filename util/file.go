@@ -126,7 +126,10 @@ func (f *File) Truncate() error {
 		return err
 	}
 }
+func (f *File) Close() error {
+	return f.file.Close()
 
+}
 func (f *File) ReadBytes(p []byte) (n int, err error) {
 	flag, err := f.Exists()
 	if !flag {
