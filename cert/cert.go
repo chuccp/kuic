@@ -37,6 +37,7 @@ func generateCert(subject *pkix.Name, parent *Cert, bits int, isCA bool) (cert *
 		cert.CSR.KeyUsage = x509.KeyUsageDigitalSignature
 		cert.CSR.SubjectKeyId = []byte("abc")
 		cert.CSR.DNSNames = []string{"localhost"}
+		//cert.CSR.IPAddresses = []net.IP{net.IPv4(127, 0, 0, 1)}
 		//cert.CSR.ExcludedIPRanges
 	}
 	if subject != nil {
@@ -57,9 +58,6 @@ func generateCert(subject *pkix.Name, parent *Cert, bits int, isCA bool) (cert *
 				CommonName:         "share-0",
 			}
 		}
-
-		//Country : []string{"Earth"},
-		//                        Organization: []string{"Mother Nature"},
 	}
 	var parentCsr *x509.Certificate
 
@@ -93,6 +91,30 @@ func CreateCert(keyPath string, certPath string, parent *Cert) error {
 	}
 	return util.WriteFile(certPath, certPEM)
 }
+
+func CreateCertGroup(subject *pkix.Name, caPath, certPath, keyPath string) error {
+	CA, err := generateCert(subject, nil, 4096, true)
+	if err != nil {
+		return err
+	}
+	cert, err := generateCert(subject, CA, 4096, false)
+	if err != nil {
+		return err
+	}
+	caPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: CA.CERT})
+	err = util.WriteFile(caPath, caPem)
+	if err != nil {
+		return err
+	}
+	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.CERT})
+	err = util.WriteFile(certPath, certPem)
+	if err != nil {
+		return err
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(cert.CertKey)})
+	return util.WriteFile(keyPath, keyPEM)
+}
+
 func CreateCertAndSubject(keyPath string, certPath string, subject *pkix.Name) error {
 	cert, err := generateCert(subject, nil, 4096, true)
 	if err != nil {
