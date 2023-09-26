@@ -110,6 +110,39 @@ func (server *Server) ListenAndServe(certFile, keyFile string, handler http.Hand
 
 	return nil
 }
+
+func (server *Server) ListenAndServeWithTls(tlsConfig *tls.Config, handler http.Handler) error {
+	conn, err := server.baseServer.GetServerConn()
+	if err != nil {
+		return err
+	}
+	if handler == nil {
+		handler = http.DefaultServeMux
+	}
+	quicServer := &http3.Server{
+		TLSConfig: tlsConfig,
+		Handler:   handler,
+	}
+	hErr := make(chan error)
+	qErr := make(chan error)
+	go func() {
+		hErr <- http.ListenAndServe(server.addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler.ServeHTTP(w, r)
+		}))
+	}()
+	go func() {
+		qErr <- quicServer.Serve(conn)
+	}()
+	select {
+	case err := <-hErr:
+		quicServer.Close()
+		return err
+	case err := <-qErr:
+		return err
+	}
+	return nil
+}
+
 func CreateServer(addr string) (*Server, error) {
 	server := &Server{addr: addr}
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
