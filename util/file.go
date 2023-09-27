@@ -226,6 +226,22 @@ func (f *File) IsDir() bool {
 func (f *File) IsDisk() bool {
 	return f.isDisk
 }
+
+func ReadFile(path string) ([]byte, error) {
+	file, err := NewFile(path)
+	if err != nil {
+		return nil, err
+	}
+	all, err := file.ReadAll()
+	if err != nil {
+		file.Close()
+		return nil, err
+	} else {
+		file.Close()
+		return all, nil
+	}
+}
+
 func NewFile(path string) (*File, error) {
 	normal, err := filepath.Abs(path)
 	if err != nil {
