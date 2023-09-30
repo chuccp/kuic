@@ -6,37 +6,14 @@ import (
 
 func TestCrt(t *testing.T) {
 
-	err := CreateCa("ca.key", "ca.crt")
+	err := CreateCertGroup(nil, "server.cer", "server.crt", "server.key")
 	if err != nil {
-		t.Log(err)
 		return
 	}
-
-	certificate, err := ReadCertificateForPem("ca.crt")
+	err = CreateCertGroup(nil, "client.cer", "client.crt", "client.key")
 	if err != nil {
-		t.Log(err)
 		return
 	}
-
-	key, err2 := ReadRsaPrivateKeyForPem("ca.key")
-	if err2 != nil {
-		return
-	}
-
-	var parent = &Cert{
-		CSR:     certificate,
-		CertKey: key,
-	}
-
-	err = CreateCert("client.key", "client.pem", parent)
-	if err != nil {
-		t.Log(err)
-		return
-	}
-	err = CreateCert("server.key", "server.pem", parent)
-	if err != nil {
-		t.Log(err)
-		return
-	}
+	t.Log(err)
 
 }

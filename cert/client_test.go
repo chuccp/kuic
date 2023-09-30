@@ -10,23 +10,25 @@ import (
 
 func TestClient(t *testing.T) {
 
-	caCert, err := ReadCertificateForPem("ca.crt")
+	caCert, err := ReadCertificateForPem("server.cer")
 	if err != nil {
 		return
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(caCert)
 
-	cert, err := tls.LoadX509KeyPair("client.pem", "client.key")
+	cert, err := tls.LoadX509KeyPair("client.crt", "client.key")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
 	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caCertPool,
-		ServerName:   "localhost",
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		ClientCAs:          caCertPool,
+		ServerName:         "localhost",
+		ClientAuth:         tls.RequestClientCert,
+		InsecureSkipVerify: false,
 	}
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
 	httpClient := &http.Client{Transport: transport}

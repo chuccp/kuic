@@ -10,7 +10,7 @@ import (
 
 func TestName(t *testing.T) {
 
-	caCert, err := ReadCertificateForPem("ca.crt")
+	caCert, err := ReadCertificateForPem("client.cer")
 	if err != nil {
 		return
 	}
@@ -20,16 +20,20 @@ func TestName(t *testing.T) {
 	serve := http.NewServeMux()
 	serve.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write([]byte("1111111"))
+
+		log.Println(request.TLS)
+
 	})
 	s := &http.Server{
 		Addr:    ":2356",
 		Handler: serve,
 		TLSConfig: &tls.Config{
+			//RootCAs:    caCertPool,
 			ClientCAs:  caCertPool,
-			ClientAuth: tls.RequireAndVerifyClientCert,
+			ClientAuth: tls.VerifyClientCertIfGiven,
 		},
 	}
-	err = s.ListenAndServeTLS("server.pem", "server.key")
+	err = s.ListenAndServeTLS("server.crt", "server.key")
 	if err != nil {
 		log.Println(err)
 		return
