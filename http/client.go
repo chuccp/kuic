@@ -3,8 +3,10 @@ package http
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"github.com/chuccp/kuic"
+	"github.com/chuccp/kuic/cert"
 	"github.com/quic-go/quic-go/http3"
 	"io"
 	"net"
@@ -138,6 +140,28 @@ func NewClient(address string, conn net.PacketConn) *Client {
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
 	}
+	cl := http3.NewClient(conn, tlsConf)
+	return &Client{address: address, conn: conn, client: cl}
+}
+func NewKuicClient(address string, certPath string, conn net.PacketConn) *Client {
+	ca, tlsSert, xCert, err := cert.ReadKuicCert(certPath)
+	if err != nil {
+		return nil
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AddCert(ca)
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{*tlsSert},
+		RootCAs:            caCertPool,
+		ClientCAs:          caCertPool,
+		ServerName:         xCert.DNSNames[0],
+		ClientAuth:         tls.RequestClientCert,
+		InsecureSkipVerify: false,
+	}
+	cl := http3.NewClient(conn, tlsConfig)
+	return &Client{address: address, conn: conn, client: cl}
+}
+func NewTlsClient(address string, tlsConf *tls.Config, conn net.PacketConn) *Client {
 	cl := http3.NewClient(conn, tlsConf)
 	return &Client{address: address, conn: conn, client: cl}
 }

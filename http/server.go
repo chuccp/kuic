@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/chuccp/kuic"
+	"github.com/chuccp/kuic/cert"
 	"github.com/quic-go/quic-go/http3"
 	"net"
 	"net/http"
@@ -118,6 +119,43 @@ func (server *Server) ListenAndServeWithTls(tlsConfig *tls.Config, handler http.
 	}
 	if handler == nil {
 		handler = http.DefaultServeMux
+	}
+	quicServer := &http3.Server{
+		TLSConfig: tlsConfig,
+		Handler:   handler,
+	}
+	hErr := make(chan error)
+	qErr := make(chan error)
+	go func() {
+		hErr <- http.ListenAndServe(server.addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler.ServeHTTP(w, r)
+		}))
+	}()
+	go func() {
+		qErr <- quicServer.Serve(conn)
+	}()
+	select {
+	case err := <-hErr:
+		quicServer.Close()
+		return err
+	case err := <-qErr:
+		return err
+	}
+	return nil
+}
+
+func (server *Server) ListenAndServeWithKuicTls(manager *cert.Manager, handler http.Handler) error {
+	conn, err := server.baseServer.GetServerConn()
+	if err != nil {
+		return err
+	}
+	if handler == nil {
+		handler = http.DefaultServeMux
+	}
+	tlsConfig := &tls.Config{
+		ClientCAs:    manager.GetCertPool(),
+		Certificates: []tls.Certificate{*manager.GetServerCertificate()},
+		ClientAuth:   tls.VerifyClientCertIfGiven,
 	}
 	quicServer := &http3.Server{
 		TLSConfig: tlsConfig,

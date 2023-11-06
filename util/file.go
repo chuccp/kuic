@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"os"
 	"os/exec"
@@ -127,6 +128,10 @@ func (f *File) Truncate() error {
 	}
 }
 func (f *File) Close() error {
+	err := f.file.Sync()
+	if err != nil {
+		return err
+	}
 	return f.file.Close()
 
 }
@@ -330,13 +335,34 @@ func WriteFile(path string, data []byte) error {
 	}
 	return nil
 }
-func ExistsFile(path string) (bool, error) {
+
+func WriteBytesFile(path string, dataS ...[]byte) error {
 	file, err := NewFile(path)
 	if err != nil {
-		return false, err
+		return err
 	} else {
-		return file.Exists()
+
+		bytes := new(bytes.Buffer)
+		for _, data := range dataS {
+			bytes.Write(data)
+		}
+		err := file.WriteBytes(bytes.Bytes())
+		if err != nil {
+			file.Close()
+			return err
+		}
 	}
+	file.Close()
+	return nil
+}
+
+func ExistsFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return os.IsExist(err)
+	}
+	f.Close()
+	return true
 }
 func getOtherRootPath() ([]*File, error) {
 	dirs, err := os.ReadDir("/")
