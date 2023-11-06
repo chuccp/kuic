@@ -103,6 +103,9 @@ type Client struct {
 
 func (c *Client) Get(path string) (string, error) {
 	get, err := c.GetRaw(path)
+	if err != nil {
+		return "", err
+	}
 	all, err := io.ReadAll(get)
 	if err != nil {
 		return "", err
@@ -115,6 +118,9 @@ func (c *Client) GetRaw(path string) (io.ReadCloser, error) {
 	}
 	url := "https://" + c.address + "/" + path
 	get, err := c.client.Get(url)
+	if err != nil {
+		return nil, err
+	}
 	return get.Body, err
 }
 

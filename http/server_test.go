@@ -27,15 +27,20 @@ func TestServerAAA(t *testing.T) {
 	}
 
 	go func() {
+		time.Sleep(time.Second * 3)
+		clientCert, err := manager.CreateClientCert("abc")
 
-		time.Sleep(time.Second * 5)
-		clientCert, _ := manager.CreateClientCert("abc")
+		manager.GetCertPool().AddCert(clientCert.ClientCa)
+
+		log.Println(err)
 
 		client, err := server.GetTlsHttpClient("127.0.0.1:2563", clientCert)
+		log.Println("======000=======", client, err)
 		if err != nil {
 			return
 		}
 		get, err := client.Get("/")
+		log.Println("======111=======", get, err)
 		if err != nil {
 			return
 		}
