@@ -41,7 +41,8 @@ func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
 func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (*Client, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	client, ok := cp.addressMap[address]
+	key := address + "_tls"
+	client, ok := cp.addressMap[key]
 	if ok {
 		return client, nil
 	}
@@ -50,7 +51,7 @@ func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (
 		return nil, err
 	}
 	client = NewKuicClient(address, cert, conn)
-	cp.addressMap[address] = client
+	cp.addressMap[key] = client
 	return client, nil
 }
 func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
