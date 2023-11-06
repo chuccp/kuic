@@ -91,6 +91,19 @@ func (cp *ClientPool) getClientConn(address string) (net.PacketConn, error) {
 	cp.connMap[address] = conn
 	return conn, nil
 }
+func (cp *ClientPool) getClientTlsConn(address string) (net.PacketConn, error) {
+	key := address + "_tls"
+	conn, ok := cp.connMap[key]
+	if ok {
+		return conn, nil
+	}
+	conn, err := cp.baseServer.GetClientConn()
+	if err != nil {
+		return nil, err
+	}
+	cp.connMap[key] = conn
+	return conn, nil
+}
 
 func NewClientPool(baseServer kuic.BaseServer) *ClientPool {
 	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]net.PacketConn), reverseProxyMap: make(map[string]*ReverseProxy)}
