@@ -46,7 +46,7 @@ func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientConn(address)
+	conn, err := cp.getClientTlsConn(address)
 	if err != nil {
 		return nil, err
 	}
