@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestServerAAA(t *testing.T) {
@@ -24,10 +25,28 @@ func TestServerAAA(t *testing.T) {
 		t.Log(err)
 		return
 	}
+
+	go func() {
+
+		time.Sleep(time.Second * 5)
+		clientCert, _ := manager.CreateClientCert("abc")
+
+		client, err := server.GetTlsHttpClient("127.0.0.1:2563", clientCert)
+		if err != nil {
+			return
+		}
+		get, err := client.Get("/")
+		if err != nil {
+			return
+		}
+		log.Println(get)
+	}()
+
 	log.Println("===============")
 	err = server.ListenAndServeWithKuicTls(manager, serveMux)
 	if err != nil {
 		t.Log(err)
 		return
 	}
+
 }

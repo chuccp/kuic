@@ -8,8 +8,12 @@ import (
 )
 
 type Certificate struct {
-	cert *tls.Certificate
-	ca   *x509.Certificate
+	Cert           *tls.Certificate
+	ClientCa       *x509.Certificate
+	ServerCa       *x509.Certificate
+	ClientCertPath string
+	ClientCaPath   string
+	ServerName     string
 }
 
 type Manager struct {
@@ -61,5 +65,10 @@ func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Certificate{cert: &cert, ca: ca}, nil
+	caBlock, _ := pem.Decode(m.serverCaPem)
+	sca, err := x509.ParseCertificate(caBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return &Certificate{ServerName: m.serverName, Cert: &cert, ClientCa: ca, ServerCa: sca, ClientCertPath: clientCertPath, ClientCaPath: clientCaPath}, nil
 }

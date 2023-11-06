@@ -38,6 +38,21 @@ func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
 	cp.addressMap[address] = client
 	return client, nil
 }
+func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (*Client, error) {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	client, ok := cp.addressMap[address]
+	if ok {
+		return client, nil
+	}
+	conn, err := cp.getClientConn(address)
+	if err != nil {
+		return nil, err
+	}
+	client = NewKuicClient(address, cert, conn)
+	cp.addressMap[address] = client
+	return client, nil
+}
 func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
@@ -143,18 +158,15 @@ func NewClient(address string, conn net.PacketConn) *Client {
 	cl := http3.NewClient(conn, tlsConf)
 	return &Client{address: address, conn: conn, client: cl}
 }
-func NewKuicClient(address string, certPath string, conn net.PacketConn) *Client {
-	ca, tlsSert, xCert, err := cert.ReadKuicCert(certPath)
-	if err != nil {
-		return nil
-	}
+func NewKuicClient(address string, cer *cert.Certificate, conn net.PacketConn) *Client {
+
 	caCertPool := x509.NewCertPool()
-	caCertPool.AddCert(ca)
+	caCertPool.AddCert(cer.ServerCa)
 	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{*tlsSert},
+		Certificates:       []tls.Certificate{*cer.Cert},
 		RootCAs:            caCertPool,
 		ClientCAs:          caCertPool,
-		ServerName:         xCert.DNSNames[0],
+		ServerName:         cer.ServerName,
 		ClientAuth:         tls.RequestClientCert,
 		InsecureSkipVerify: false,
 	}

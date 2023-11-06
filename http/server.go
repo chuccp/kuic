@@ -19,7 +19,9 @@ type Server struct {
 func (server *Server) GetHttpClient(address string) (*Client, error) {
 	return server.clientPool.GetHttpClient(address)
 }
-
+func (server *Server) GetTlsHttpClient(address string, cert *cert.Certificate) (*Client, error) {
+	return server.clientPool.GetTlsHttpClient(address, cert)
+}
 func (server *Server) GetReverseProxy(address string) (*ReverseProxy, error) {
 	conn, err := server.clientPool.GetClientConn(address)
 	if err != nil {
