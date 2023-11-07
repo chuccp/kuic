@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -85,7 +86,7 @@ func (f *File) Exists() (flag bool, err error) {
 	err = f.open()
 	if err != nil {
 		if os.IsNotExist(err) {
-			return false, nil
+			return false, os.ErrNotExist
 		}
 		return true, err
 	}
@@ -215,7 +216,8 @@ func (f *File) List() ([]*File, error) {
 	}
 	var files = make([]*File, 0)
 	for _, dir := range dirs {
-		file, err3 := NewFile(dir.Name())
+		filePath := path.Join(f.normal, dir.Name())
+		file, err3 := NewFile(filePath)
 		if err3 == nil {
 			files = append(files, file)
 		}

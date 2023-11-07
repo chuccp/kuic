@@ -4,7 +4,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/chuccp/kuic/util"
+	"log"
 	"path"
+	"strings"
 )
 
 type Certificate struct {
@@ -41,7 +44,39 @@ func (m *Manager) Init() (err error) {
 	}
 	m.cert = &cert
 	m.certPool = x509.NewCertPool()
+	m.loadClientCa()
 	return
+}
+func (m *Manager) loadClientCa() {
+	file, err := util.NewFile(m.certPath)
+	if err != nil {
+		return
+	}
+	if file.IsDir() {
+		list, err := file.List()
+		if err != nil {
+			return
+		}
+		if len(list) > 0 {
+			for _, ele := range list {
+				if !ele.IsDir() {
+					if strings.HasSuffix(ele.Name(), ".ca") {
+						data, err := ele.ReadAll()
+						if err != nil {
+							return
+						}
+						log.Println(data, ele.Name())
+						block, _ := pem.Decode(data)
+						sca, err := x509.ParseCertificate(block.Bytes)
+						log.Println("加载客户端证书", ele.Name())
+						m.certPool.AddCert(sca)
+					}
+				}
+			}
+
+		}
+	}
+
 }
 func (m *Manager) GetServerCertificate() *tls.Certificate {
 	return m.cert
@@ -70,5 +105,6 @@ func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	m.certPool.AddCert(ca)
 	return &Certificate{ServerName: m.serverName, Cert: &cert, ClientCa: ca, ServerCa: sca, ClientCertPath: clientCertPath, ClientCaPath: clientCaPath}, nil
 }
