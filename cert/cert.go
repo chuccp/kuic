@@ -184,39 +184,39 @@ func CreateKuicServerCert(serverName string, serverPath string) (err error) {
 	}
 	return
 }
-func CreateOrReadKuicServerCertPem(serverName string, serverPath string) (serverCaPem []byte, serverCertPem []byte, serverKeyPEM []byte, err error) {
+func CreateOrReadKuicServerCertPem(serverPath string) (serverName string, serverCaPem []byte, serverCertPem []byte, serverKeyPEM []byte, err error) {
 	flag := util.ExistsFile(serverPath)
 	if flag {
 		var data []byte
 		data, err = util.ReadFile(serverPath)
 		if err != nil {
-			return nil, nil, nil, err
+			return "", nil, nil, nil, err
 		}
 		ca, rest := pem.Decode(data)
 		cert, rest := pem.Decode(rest)
 		var certificate *x509.Certificate
 		certificate, err = x509.ParseCertificate(cert.Bytes)
 		if err != nil {
-			return nil, nil, nil, err
+			return "", nil, nil, nil, err
 		}
-		if util.ContainsElement(certificate.DNSNames, serverName) {
-			key, _ := pem.Decode(rest)
-			serverCaPem = pem.EncodeToMemory(ca)
-			serverCertPem = pem.EncodeToMemory(cert)
-			serverKeyPEM = pem.EncodeToMemory(key)
-			return
-		}
+		serverName = certificate.DNSNames[0]
+		key, _ := pem.Decode(rest)
+		serverCaPem = pem.EncodeToMemory(ca)
+		serverCertPem = pem.EncodeToMemory(cert)
+		serverKeyPEM = pem.EncodeToMemory(key)
+		return
 	}
+	serverName = util.ServerName()
 	serverCa, serverCert, err := createCaAndCert(serverName)
 	if err != nil {
-		return nil, nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	serverCaPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCa.CERT})
 	serverCertPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCert.CERT})
 	serverKeyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(serverCert.CertKey)})
 	err = util.WriteBytesFile(serverPath, serverCaPem, serverCertPem, serverKeyPEM)
 	if err != nil {
-		return nil, nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	return
 }

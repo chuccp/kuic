@@ -29,12 +29,13 @@ type Manager struct {
 	certPool      *x509.CertPool
 }
 
-func NewManager(certPath string, serverName string) *Manager {
-	return &Manager{certPath: certPath, serverName: serverName}
+func NewManager(certPath string) *Manager {
+	return &Manager{certPath: certPath}
 }
 func (m *Manager) Init() (err error) {
 	serverPath := path.Join(m.certPath, "server.cert")
-	m.serverCaPem, m.serverCertPem, m.serverKeyPEM, err = CreateOrReadKuicServerCertPem(m.serverName, serverPath)
+	m.serverName, m.serverCaPem, m.serverCertPem, m.serverKeyPEM, err = CreateOrReadKuicServerCertPem(serverPath)
+	log.Println(m.serverName)
 	if err != nil {
 		return
 	}
@@ -52,6 +53,7 @@ func (m *Manager) loadClientCa() {
 	if err != nil {
 		return
 	}
+	defer file.Close()
 	if file.IsDir() {
 		list, err := file.List()
 		if err != nil {
@@ -65,13 +67,13 @@ func (m *Manager) loadClientCa() {
 						if err != nil {
 							return
 						}
-						log.Println(data, ele.Name())
 						block, _ := pem.Decode(data)
 						sca, err := x509.ParseCertificate(block.Bytes)
-						log.Println("加载客户端证书", ele.Name())
 						m.certPool.AddCert(sca)
+						ele.Close()
 					}
 				}
+
 			}
 
 		}

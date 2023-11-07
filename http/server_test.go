@@ -19,7 +19,7 @@ func TestServerAAA(t *testing.T) {
 		return
 	}
 
-	manager := cert.NewManager("server", "olnfhscjh")
+	manager := cert.NewManager("server")
 	err = manager.Init()
 	if err != nil {
 		t.Log(err)
@@ -29,9 +29,7 @@ func TestServerAAA(t *testing.T) {
 	go func() {
 		time.Sleep(time.Second * 3)
 		clientCert, err := manager.CreateClientCert("abc")
-
 		log.Println(err)
-
 		client, err := server.GetTlsHttpClient("127.0.0.1:2563", clientCert)
 		log.Println("======000=======", client, err)
 		if err != nil {
