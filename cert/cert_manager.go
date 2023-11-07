@@ -83,6 +83,9 @@ func (m *Manager) loadClientCa() {
 func (m *Manager) GetServerCertificate() *tls.Certificate {
 	return m.cert
 }
+func (m *Manager) GetServerName() string {
+	return m.serverName
+}
 func (m *Manager) GetCertPool() *x509.CertPool {
 	return m.certPool
 }
