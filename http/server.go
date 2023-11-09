@@ -23,16 +23,12 @@ func (server *Server) GetTlsHttpClient(address string, cert *cert.Certificate) (
 	return server.clientPool.GetTlsHttpClient(address, cert)
 }
 func (server *Server) GetReverseProxy(address string) (*ReverseProxy, error) {
-	conn, err := server.clientPool.GetClientConn(address)
-	if err != nil {
-		return nil, err
-	} else {
-		proxy, err := NewReverseProxy(address, conn)
-		if err != nil {
-			return nil, err
-		}
-		return proxy, err
-	}
+	proxy, err := server.clientPool.ReverseProxy(address)
+	return proxy, err
+}
+func (server *Server) GetTlsReverseProxy(address string, cert *cert.Certificate) (*ReverseProxy, error) {
+	proxy, err := server.clientPool.TlsReverseProxy(address, cert)
+	return proxy, err
 }
 
 func (server *Server) ListenAndServeTLS(certFile, keyFile string, handler http.Handler) error {

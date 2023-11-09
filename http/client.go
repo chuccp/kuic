@@ -16,11 +16,12 @@ import (
 )
 
 type ClientPool struct {
-	lock            *sync.RWMutex
-	baseServer      kuic.BaseServer
-	addressMap      map[string]*Client
-	connMap         map[string]net.PacketConn
-	reverseProxyMap map[string]*ReverseProxy
+	lock               *sync.RWMutex
+	baseServer         kuic.BaseServer
+	addressMap         map[string]*Client
+	connMap            map[string]net.PacketConn
+	reverseProxyMap    map[string]*ReverseProxy
+	tlsReverseProxyMap map[string]*ReverseProxy
 }
 
 func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
@@ -74,6 +75,27 @@ func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
 	}
 
 }
+func (cp *ClientPool) TlsReverseProxy(address string, cert *cert.Certificate) (*ReverseProxy, error) {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	client, ok := cp.tlsReverseProxyMap[address]
+	if ok {
+		return client, nil
+	}
+	conn, err := cp.getClientTlsConn(address)
+	if err != nil {
+		return nil, err
+	} else {
+		proxy, err := NewTslReverseProxy(address, conn, cert)
+		if err != nil {
+			return nil, err
+		}
+		cp.tlsReverseProxyMap[address] = proxy
+		return proxy, err
+	}
+
+}
+
 func (cp *ClientPool) GetClientConn(address string) (net.PacketConn, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
@@ -106,7 +128,7 @@ func (cp *ClientPool) getClientTlsConn(address string) (net.PacketConn, error) {
 }
 
 func NewClientPool(baseServer kuic.BaseServer) *ClientPool {
-	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]net.PacketConn), reverseProxyMap: make(map[string]*ReverseProxy)}
+	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]net.PacketConn), tlsReverseProxyMap: make(map[string]*ReverseProxy), reverseProxyMap: make(map[string]*ReverseProxy)}
 }
 
 type Client struct {

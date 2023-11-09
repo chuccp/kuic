@@ -2,6 +2,8 @@ package http
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"github.com/chuccp/kuic/cert"
 	"github.com/quic-go/quic-go/http3"
 	"net"
 	"net/http"
@@ -24,6 +26,28 @@ func NewReverseProxy(remoteAddress string, conn net.PacketConn) (*ReverseProxy, 
 		InsecureSkipVerify: true,
 	}
 	roundTripper := http3.GetTransport(conn, tlsConf)
+	reverseProxy := httputil.NewSingleHostReverseProxy(parseUrl)
+	reverseProxy.Transport = roundTripper
+	return &ReverseProxy{reverseProxy: reverseProxy, remoteUrl: parseUrl}, nil
+}
+
+func NewTslReverseProxy(remoteAddress string, conn net.PacketConn, cert *cert.Certificate) (*ReverseProxy, error) {
+	remoteUrl := "https://" + remoteAddress
+	parseUrl, err := url.Parse(remoteUrl)
+	if err != nil {
+		return nil, err
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AddCert(cert.ServerCa)
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{*cert.Cert},
+		RootCAs:            caCertPool,
+		ClientCAs:          caCertPool,
+		ServerName:         cert.ServerName,
+		ClientAuth:         tls.RequestClientCert,
+		InsecureSkipVerify: false,
+	}
+	roundTripper := http3.GetTransport(conn, tlsConfig)
 	reverseProxy := httputil.NewSingleHostReverseProxy(parseUrl)
 	reverseProxy.Transport = roundTripper
 	return &ReverseProxy{reverseProxy: reverseProxy, remoteUrl: parseUrl}, nil
