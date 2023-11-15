@@ -3,7 +3,6 @@ package kuic
 import (
 	"context"
 	"errors"
-	"log"
 	"net"
 	"time"
 )
@@ -104,7 +103,6 @@ func (c *BasicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 		c.Close()
 		return 0, nil, net.ErrClosed
 	case <-c.closeContext.Done():
-		log.Println("!!!!!!!!!!!!!!!!!!")
 		return 0, nil, net.ErrClosed
 	}
 }
