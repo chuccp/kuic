@@ -2,6 +2,8 @@ package kuic
 
 import (
 	"context"
+	"errors"
+	"log"
 	"net"
 	"time"
 )
@@ -56,10 +58,23 @@ func (c *BasicConn) SetWriteBuffer(bytes int) error {
 }
 
 func (c *BasicConn) SetReadDeadline(t time.Time) error {
-	c.timeOutCloseContext, _ = context.WithDeadline(context.Background(), t)
+	if c.timeOutCloseContext != nil && c.timeOutCloseContext.Err() == nil && !errors.Is(c.timeOutCloseContext.Err(), context.Canceled) {
+		c.timeOutCloseCancelFunc()
+	}
+	if c.closeContext.Err() != nil {
+		return c.closeContext.Err()
+	}
+	c.timeOutCloseContext, c.timeOutCloseCancelFunc = context.WithDeadline(context.Background(), t)
 	go func() {
-		<-c.timeOutCloseContext.Done()
-		c.Close()
+		select {
+		case <-c.timeOutCloseContext.Done():
+			{
+				err := c.timeOutCloseContext.Err()
+				if errors.Is(err, context.DeadlineExceeded) {
+					c.Close()
+				}
+			}
+		}
 	}()
 	return nil
 }
@@ -86,8 +101,10 @@ func (c *BasicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 			return packet.num, packet.addr, packet.err
 		}
 	case <-c.context.Done():
+		c.Close()
 		return 0, nil, net.ErrClosed
 	case <-c.closeContext.Done():
+		log.Println("!!!!!!!!!!!!!!!!!!")
 		return 0, nil, net.ErrClosed
 	}
 }
