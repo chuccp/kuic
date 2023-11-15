@@ -57,7 +57,7 @@ func (c *BasicConn) SetWriteBuffer(bytes int) error {
 }
 
 func (c *BasicConn) SetReadDeadline(t time.Time) error {
-	if c.timeOutCloseContext != nil && c.timeOutCloseContext.Err() == nil && !errors.Is(c.timeOutCloseContext.Err(), context.Canceled) {
+	if c.timeOutCloseContext != nil && c.timeOutCloseContext.Err() == nil {
 		c.timeOutCloseCancelFunc()
 	}
 	if c.closeContext.Err() != nil {
