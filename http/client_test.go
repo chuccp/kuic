@@ -10,7 +10,7 @@ import (
 
 func TestQuic(t *testing.T) {
 
-	err := cert.CreateKuicCert("xxxxxxxxxx", "server_kuic.cer", "client_kuic.cer")
+	err := cert.CreateKuicCert("server_kuic.cer", "client_kuic.cer")
 	if err != nil {
 		return
 	}

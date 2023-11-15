@@ -24,6 +24,10 @@ func generateCert(subject *pkix.Name, parent *Cert, bits int, isCA bool) (cert *
 	return generateCertForDNSNames(subject, parent, []string{"localhost"}, bits, isCA)
 }
 
+func generateCa(subject *pkix.Name, bits int, isCA bool) (cert *Cert, err error) {
+	return generateCertForDNSNames(subject, nil, []string{}, bits, true)
+}
+
 func generateCertForDNSNames(subject *pkix.Name, parent *Cert, DNSNames []string, bits int, isCA bool) (cert *Cert, err error) {
 	cert = &Cert{}
 	cert.CertKey, err = rsa.GenerateKey(rand.Reader, bits)
@@ -120,14 +124,14 @@ func CreateCertGroup(subject *pkix.Name, caPath, certPath, keyPath string) error
 	return util.WriteFile(keyPath, keyPEM)
 }
 
-func createCaAndCert(serverName string) (CA *Cert, cert *Cert, err error) {
+func createCaAndCert() (CA *Cert, cert *Cert, err error) {
 	subject := &pkix.Name{
 		Country:            []string{"Earth"},
 		Organization:       []string{"Kuic"},
 		OrganizationalUnit: []string{"Freedom"},
 		CommonName:         "share",
 	}
-	CA, err = generateCertForDNSNames(subject, nil, []string{serverName}, 4096, true)
+	CA, err = generateCa(subject, 4096, true)
 	if err != nil {
 		return
 	}
@@ -137,6 +141,7 @@ func createCaAndCert(serverName string) (CA *Cert, cert *Cert, err error) {
 		OrganizationalUnit: []string{"Freedom-0"},
 		CommonName:         "share-0",
 	}
+	serverName := util.ServerName(CA.CERT)
 	cert, err = generateCertForDNSNames(subject, CA, []string{serverName}, 4096, false)
 	if err != nil {
 		return
@@ -144,12 +149,12 @@ func createCaAndCert(serverName string) (CA *Cert, cert *Cert, err error) {
 	return
 }
 
-func CreateKuicCert(serverName string, serverPath string, clientPath string) (err error) {
-	serverCa, serverCert, err := createCaAndCert(serverName)
+func CreateKuicCert(serverPath string, clientPath string) (err error) {
+	serverCa, serverCert, err := createCaAndCert()
 	if err != nil {
 		return err
 	}
-	clientCa, clientCert, err := createCaAndCert(serverName)
+	clientCa, clientCert, err := createCaAndCert()
 	if err != nil {
 		return err
 	}
@@ -170,8 +175,8 @@ func CreateKuicCert(serverName string, serverPath string, clientPath string) (er
 	return
 }
 
-func CreateKuicServerCert(serverName string, serverPath string) (err error) {
-	serverCa, serverCert, err := createCaAndCert(serverName)
+func CreateKuicServerCert(serverPath string) (err error) {
+	serverCa, serverCert, err := createCaAndCert()
 	if err != nil {
 		return err
 	}
@@ -206,8 +211,8 @@ func CreateOrReadKuicServerCertPem(serverPath string) (serverName string, server
 		serverKeyPEM = pem.EncodeToMemory(key)
 		return
 	}
-	serverName = util.ServerName()
-	serverCa, serverCert, err := createCaAndCert(serverName)
+
+	serverCa, serverCert, err := createCaAndCert()
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
@@ -220,7 +225,7 @@ func CreateOrReadKuicServerCertPem(serverPath string) (serverName string, server
 	}
 	return
 }
-func CreateOrReadKuicClientCert(serverName string, serverCaPem []byte, clientCertPath string, clientCaPath string) (clientCaPem []byte, clientCertPem []byte, clientKeyPEM []byte, err error) {
+func CreateOrReadKuicClientCert(serverCaPem []byte, clientCertPath string, clientCaPath string) (clientCaPem []byte, clientCertPem []byte, clientKeyPEM []byte, err error) {
 	flag0 := util.ExistsFile(clientCertPath)
 	flag1 := util.ExistsFile(clientCaPath)
 	if flag0 && flag1 {
@@ -247,7 +252,7 @@ func CreateOrReadKuicClientCert(serverName string, serverCaPem []byte, clientCer
 		}
 
 	}
-	clientCa, clientCert, err := createCaAndCert(serverName)
+	clientCa, clientCert, err := createCaAndCert()
 	clientCaPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCa.CERT})
 	clientCertPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCert.CERT})
 	clientKeyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(clientCert.CertKey)})

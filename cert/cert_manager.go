@@ -90,7 +90,7 @@ func (m *Manager) GetCertPool() *x509.CertPool {
 func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 	clientCertPath := path.Join(m.certPath, username+".client.cert")
 	clientCaPath := path.Join(m.certPath, username+".client.ca")
-	clientCaPem, clientCertPem, clientKeyPEM, err := CreateOrReadKuicClientCert(m.serverName, m.serverCaPem, clientCertPath, clientCaPath)
+	clientCaPem, clientCertPem, clientKeyPEM, err := CreateOrReadKuicClientCert(m.serverCaPem, clientCertPath, clientCaPath)
 	if err != nil {
 		return nil, err
 	}
