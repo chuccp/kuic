@@ -15,7 +15,7 @@ type packet struct {
 	addr net.Addr
 }
 
-type basicConn struct {
+type BasicConn struct {
 	net.PacketConn
 	UDPConn         *net.UDPConn
 	isClient        bool
@@ -26,13 +26,16 @@ type basicConn struct {
 	context         context.Context
 	closeContext    context.Context
 	closeCancelFunc context.CancelFunc
+
+	timeOutCloseContext    context.Context
+	timeOutCloseCancelFunc context.CancelFunc
 }
 
-func NewBasicConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, ctx context.Context) *basicConn {
+func NewBasicConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, ctx context.Context) *BasicConn {
 
 	closeContext, closeCancelFunc := context.WithCancel(context.Background())
 
-	return &basicConn{
+	return &BasicConn{
 		UDPConn:         conn,
 		isClient:        false,
 		lAddr:           lAddr,
@@ -44,33 +47,38 @@ func NewBasicConn(conn *net.UDPConn, writeToFunc WriteToFunc, lAddr net.Addr, ct
 	}
 }
 
-func (c *basicConn) SetReadBuffer(bytes int) error {
+func (c *BasicConn) SetReadBuffer(bytes int) error {
 	return c.UDPConn.SetReadBuffer(bytes)
 }
 
-func (c *basicConn) SetWriteBuffer(bytes int) error {
+func (c *BasicConn) SetWriteBuffer(bytes int) error {
 	return c.UDPConn.SetWriteBuffer(bytes)
 }
 
-func (c *basicConn) SetReadDeadline(t time.Time) error {
-	return c.UDPConn.SetReadDeadline(t)
+func (c *BasicConn) SetReadDeadline(t time.Time) error {
+	c.timeOutCloseContext, _ = context.WithDeadline(context.Background(), t)
+	go func() {
+		<-c.timeOutCloseContext.Done()
+		c.Close()
+	}()
+	return nil
 }
-func (c *basicConn) handlePacket(packet *packet) {
+func (c *BasicConn) handlePacket(packet *packet) {
 	c.packetChan <- packet
 }
-func (c *basicConn) Close() error {
+func (c *BasicConn) Close() error {
 	c.closeCancelFunc()
 	return nil
 }
 
-func (c *basicConn) GetContext() context.Context {
+func (c *BasicConn) GetContext() context.Context {
 	return c.context
 }
-func (c *basicConn) waitClose() {
+func (c *BasicConn) WaitClose() {
 	<-c.closeContext.Done()
 }
 
-func (c *basicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+func (c *BasicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 	select {
 	case packet := <-c.packetChan:
 		{
@@ -84,21 +92,21 @@ func (c *basicConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 	}
 }
 
-func (c *basicConn) WriteTo(ps []byte, rAddr net.Addr) (n int, err error) {
+func (c *BasicConn) WriteTo(ps []byte, rAddr net.Addr) (n int, err error) {
 	addr, ok := rAddr.(*net.UDPAddr)
 	if ok {
 		if c.isClient {
 			lAddr := c.lAddr.(*Addr)
-			rAddr := NewAddr(addr, lAddr.seq&0x7F)
+			rAddr := NewAddr(addr, lAddr.seq&0x7FFF)
 			return c.writeToFunc(ps, rAddr)
 		} else {
 			lAddr := c.lAddr.(*Addr)
-			rAddr := NewAddr(addr, lAddr.seq|0x80)
+			rAddr := NewAddr(addr, lAddr.seq|0x8000)
 			return c.writeToFunc(ps, rAddr)
 		}
 	}
 	return c.writeToFunc(ps, rAddr)
 }
-func (c *basicConn) LocalAddr() net.Addr {
+func (c *BasicConn) LocalAddr() net.Addr {
 	return c.lAddr
 }

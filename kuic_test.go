@@ -8,14 +8,17 @@ import (
 )
 
 func TestName2(t *testing.T) {
+	port := 1256
 
-	listen, err := Listen(&net.UDPAddr{IP: net.IPv4(192, 168, 1, 123), Port: 1235})
+	listen, err := Listen(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port})
 	if err != nil {
 		t.Log(err)
+		return
 	} else {
 		go func() {
 			conn, err := listen.Accept()
 			if err != nil {
+				t.Log(err)
 				return
 			} else {
 				stream, err := conn.AcceptStream()
@@ -30,13 +33,15 @@ func TestName2(t *testing.T) {
 					log.Println("ppp", string(data[:to]))
 
 					stream.Write([]byte("!!!!!!!!!!!!"))
+					log.Println("===============")
 				}
 			}
 		}()
 	}
 
-	dial, err := listen.Dial(&net.UDPAddr{IP: net.IPv4(192, 168, 1, 123), Port: 1235})
+	dial, err := listen.Dial(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port})
 	if err != nil {
+		t.Log(err)
 		return
 	}
 
@@ -52,7 +57,7 @@ func TestName2(t *testing.T) {
 	}
 	log.Println("oooo", string(data[:to]))
 
-	//listen.Close()
+	dial.Close()
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 10)
 }

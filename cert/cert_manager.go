@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"github.com/chuccp/kuic/util"
-	"log"
 	"path"
 	"strings"
 )
@@ -35,7 +34,6 @@ func NewManager(certPath string) *Manager {
 func (m *Manager) Init() (err error) {
 	serverPath := path.Join(m.certPath, "server.cert")
 	m.serverName, m.serverCaPem, m.serverCertPem, m.serverKeyPEM, err = CreateOrReadKuicServerCertPem(serverPath)
-	log.Println(m.serverName)
 	if err != nil {
 		return
 	}

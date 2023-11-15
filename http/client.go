@@ -19,7 +19,7 @@ type ClientPool struct {
 	lock               *sync.RWMutex
 	baseServer         kuic.BaseServer
 	addressMap         map[string]*Client
-	connMap            map[string]net.PacketConn
+	connMap            map[string]*kuic.BasicConn
 	reverseProxyMap    map[string]*ReverseProxy
 	tlsReverseProxyMap map[string]*ReverseProxy
 }
@@ -37,6 +37,10 @@ func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
 	}
 	client = NewClient(address, conn)
 	cp.addressMap[address] = client
+	go func() {
+		conn.WaitClose()
+		delete(cp.addressMap, address)
+	}()
 	return client, nil
 }
 func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (*Client, error) {
@@ -53,6 +57,10 @@ func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (
 	}
 	client = NewKuicClient(address, cert, conn)
 	cp.addressMap[key] = client
+	go func() {
+		conn.WaitClose()
+		delete(cp.addressMap, key)
+	}()
 	return client, nil
 }
 func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
@@ -71,6 +79,10 @@ func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
 			return nil, err
 		}
 		cp.reverseProxyMap[address] = proxy
+		go func() {
+			conn.WaitClose()
+			delete(cp.reverseProxyMap, address)
+		}()
 		return proxy, err
 	}
 
@@ -91,6 +103,10 @@ func (cp *ClientPool) TlsReverseProxy(address string, cert *cert.Certificate) (*
 			return nil, err
 		}
 		cp.tlsReverseProxyMap[address] = proxy
+		go func() {
+			conn.WaitClose()
+			delete(cp.tlsReverseProxyMap, address)
+		}()
 		return proxy, err
 	}
 
@@ -101,7 +117,7 @@ func (cp *ClientPool) GetClientConn(address string) (net.PacketConn, error) {
 	defer cp.lock.Unlock()
 	return cp.getClientConn(address)
 }
-func (cp *ClientPool) getClientConn(address string) (net.PacketConn, error) {
+func (cp *ClientPool) getClientConn(address string) (*kuic.BasicConn, error) {
 	conn, ok := cp.connMap[address]
 	if ok {
 		return conn, nil
@@ -110,10 +126,14 @@ func (cp *ClientPool) getClientConn(address string) (net.PacketConn, error) {
 	if err != nil {
 		return nil, err
 	}
+	go func() {
+		conn.WaitClose()
+		delete(cp.connMap, address)
+	}()
 	cp.connMap[address] = conn
 	return conn, nil
 }
-func (cp *ClientPool) getClientTlsConn(address string) (net.PacketConn, error) {
+func (cp *ClientPool) getClientTlsConn(address string) (*kuic.BasicConn, error) {
 	key := address + "_tls"
 	conn, ok := cp.connMap[key]
 	if ok {
@@ -123,12 +143,16 @@ func (cp *ClientPool) getClientTlsConn(address string) (net.PacketConn, error) {
 	if err != nil {
 		return nil, err
 	}
+	go func() {
+		conn.WaitClose()
+		delete(cp.connMap, key)
+	}()
 	cp.connMap[key] = conn
 	return conn, nil
 }
 
 func NewClientPool(baseServer kuic.BaseServer) *ClientPool {
-	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]net.PacketConn), tlsReverseProxyMap: make(map[string]*ReverseProxy), reverseProxyMap: make(map[string]*ReverseProxy)}
+	return &ClientPool{lock: new(sync.RWMutex), baseServer: baseServer, addressMap: make(map[string]*Client), connMap: make(map[string]*kuic.BasicConn), tlsReverseProxyMap: make(map[string]*ReverseProxy), reverseProxyMap: make(map[string]*ReverseProxy)}
 }
 
 type Client struct {
@@ -148,6 +172,15 @@ func (c *Client) Get(path string) (string, error) {
 	}
 	return string(all), nil
 }
+
+func (c *Client) CloseIdleConnections() {
+	c.client.CloseIdleConnections()
+}
+func (c *Client) Close() {
+	v := c.client.Transport.(*http3.RoundTripper)
+	v.Close()
+}
+
 func (c *Client) GetRaw(path string) (io.ReadCloser, error) {
 	if strings.HasPrefix(path, "/") {
 		path = path[1:]
@@ -159,7 +192,14 @@ func (c *Client) GetRaw(path string) (io.ReadCloser, error) {
 	}
 	return get.Body, err
 }
-
+func (c *Client) GetResponse(path string) (*http.Response, error) {
+	if strings.HasPrefix(path, "/") {
+		path = path[1:]
+	}
+	url := "https://" + c.address + "/" + path
+	resp, err := c.client.Get(url)
+	return resp, err
+}
 func (c *Client) PostJson(path string, value any) (string, error) {
 	switch i := value.(type) {
 	case string:

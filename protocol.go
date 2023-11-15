@@ -2,4 +2,4 @@ package kuic
 
 const MaxPacketBufferSize = 1452
 
-const MaxSeqNum byte = 0x7F
+const MaxSeqNum uint16 = 0x7FFF

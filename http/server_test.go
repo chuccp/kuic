@@ -31,16 +31,23 @@ func TestServerAAA(t *testing.T) {
 		clientCert, err := manager.CreateClientCert("abc")
 		log.Println(err)
 		client, err := server.GetTlsHttpClient("127.0.0.1:2563", clientCert)
+
 		log.Println("======000=======", client, err)
 		if err != nil {
 			return
 		}
-		get, err := client.Get("/")
-		log.Println("======111=======", get, err)
+		response, err := client.GetResponse("/")
+		log.Println("======111=======", response, err)
+
 		if err != nil {
+			log.Println("======111=======", response, err)
 			return
 		}
-		log.Println(get)
+
+		time.Sleep(time.Second * 5)
+		log.Println("======close=======")
+		client.Close()
+		log.Println("======!!!!=======")
 	}()
 
 	log.Println("===============")

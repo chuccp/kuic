@@ -8,10 +8,10 @@ import (
 
 type Addr struct {
 	net.Addr
-	seq byte
+	seq uint16
 }
 
-func NewAddr(addr net.Addr, seq byte) *Addr {
+func NewAddr(addr net.Addr, seq uint16) *Addr {
 	return &Addr{Addr: addr, seq: seq}
 }
 func (a *Addr) Network() string {
