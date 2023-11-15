@@ -44,7 +44,6 @@ func TestServerAAA(t *testing.T) {
 			return
 		}
 
-		time.Sleep(time.Second * 5)
 		log.Println("======close=======")
 		client.Close()
 		log.Println("======!!!!=======")
