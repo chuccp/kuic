@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/quic-go/quic-go"
-	"log"
 	"math/big"
 	"net"
 	"sync"
@@ -163,11 +162,9 @@ func (bs *baseServer) GetClientConn() (*BasicConn, error) {
 	clientConn.isClient = true
 	bs.basicConnMap[lSeq] = clientConn
 	go func() {
-		log.Println("******************", 1)
 		clientConn.WaitClose()
 		delete(bs.basicConnMap, seq)
 		bs.seqStack.push(seq)
-		log.Println("******************", 2)
 	}()
 	return clientConn, nil
 }
@@ -222,7 +219,6 @@ func (l *Listener) GetClientConn() (net.PacketConn, error) {
 func Listen(addr *net.UDPAddr) (*Listener, error) {
 	udpConn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		log.Panic(err)
 		return nil, err
 	}
 	context, contextCancelFunc := context.WithCancel(context.Background())

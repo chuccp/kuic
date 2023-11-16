@@ -9,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"github.com/chuccp/kuic/util"
-	"log"
 	"math/big"
 	"time"
 )
@@ -48,7 +47,6 @@ func generateCertForDNSNames(subject *pkix.Name, parent *Cert, DNSNames []string
 	} else {
 		cert.CSR.KeyUsage = x509.KeyUsageDigitalSignature
 		cert.CSR.SubjectKeyId = []byte("abc")
-		log.Println("DNSNames:", DNSNames)
 		cert.CSR.DNSNames = DNSNames
 	}
 	if subject != nil {
@@ -379,7 +377,6 @@ func CreateOrReadKuicClientCert(serverCaPem []byte, clientCertPath string, clien
 		return
 	}
 	serverName := util.ServerName(ca.Raw)
-	log.Println("CreateOrReadKuicClientCert serverName:", serverName)
 	clientCa, clientCert, err := createClientCaAndCert(serverName)
 	clientCaPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCa.CERT})
 	clientCertPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCert.CERT})

@@ -245,9 +245,9 @@ func NewKuicClient(address string, cer *cert.Certificate, conn net.PacketConn) *
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(cer.CaPem)
 	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{*cer.Cert},
-		RootCAs:            caCertPool,
-		ClientCAs:          caCertPool,
+		Certificates: []tls.Certificate{*cer.Cert},
+		RootCAs:      caCertPool,
+		//ClientCAs:          caCertPool,
 		ServerName:         cer.ServerName,
 		ClientAuth:         tls.RequestClientCert,
 		InsecureSkipVerify: false,

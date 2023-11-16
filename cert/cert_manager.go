@@ -73,6 +73,6 @@ func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 		return nil, err
 	}
 
-	certificate := &Certificate{Cert: &cert, CaPem: m.serverCertPem, ServerName: m.serverName}
+	certificate := &Certificate{Cert: &cert, CaPem: m.serverCaPem, ServerName: m.serverName}
 	return certificate, nil
 }
