@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"github.com/chuccp/kuic/util"
-	"log"
 	"path"
 )
 
@@ -75,6 +74,5 @@ func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 	}
 
 	certificate := &Certificate{Cert: &cert, CaPem: m.serverCertPem, ServerName: m.serverName}
-	log.Println(certificate)
 	return certificate, nil
 }
