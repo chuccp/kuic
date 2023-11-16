@@ -159,6 +159,7 @@ func (server *Server) ListenAndServeWithKuicTls(manager *cert.Manager, handler h
 		TLSConfig: tlsConfig,
 		Handler:   handler,
 	}
+
 	hErr := make(chan error)
 	qErr := make(chan error)
 	go func() {

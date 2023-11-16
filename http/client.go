@@ -243,7 +243,7 @@ func NewClient(address string, conn net.PacketConn) *Client {
 func NewKuicClient(address string, cer *cert.Certificate, conn net.PacketConn) *Client {
 
 	caCertPool := x509.NewCertPool()
-	caCertPool.AddCert(cer.ServerCa)
+	caCertPool.AppendCertsFromPEM(cer.CaPem)
 	tlsConfig := &tls.Config{
 		Certificates:       []tls.Certificate{*cer.Cert},
 		RootCAs:            caCertPool,

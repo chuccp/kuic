@@ -38,7 +38,7 @@ func NewTslReverseProxy(remoteAddress string, conn net.PacketConn, cert *cert.Ce
 		return nil, err
 	}
 	caCertPool := x509.NewCertPool()
-	caCertPool.AddCert(cert.ServerCa)
+	caCertPool.AppendCertsFromPEM(cert.CaPem)
 	tlsConfig := &tls.Config{
 		Certificates:       []tls.Certificate{*cert.Cert},
 		RootCAs:            caCertPool,

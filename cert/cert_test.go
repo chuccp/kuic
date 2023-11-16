@@ -29,7 +29,7 @@ func TestCrt(t *testing.T) {
 
 func TestQuic(t *testing.T) {
 
-	err := CreateKuicCert("xxxxxxxxxx", "server_kuic.cer", "client_kuic.cer")
+	err := CreateKuicCert("server_kuic.cer", "client_kuic.cer")
 	if err != nil {
 		return
 	}
