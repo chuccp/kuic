@@ -226,6 +226,9 @@ func (c *Client) PostJsonRaw(path string, json []byte) (string, error) {
 	url := "https://" + c.address + "/" + path
 	body := bytes.NewReader(json)
 	get, err := c.client.Post(url, "application/json", body)
+	if err != nil {
+		return "", err
+	}
 	all, err := io.ReadAll(get.Body)
 	if err != nil {
 		return "", err
