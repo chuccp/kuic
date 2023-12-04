@@ -76,3 +76,21 @@ func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 	certificate := &Certificate{Cert: &cert, CaPem: m.serverCaPem, ServerName: m.serverName}
 	return certificate, nil
 }
+
+func (m *Manager) CreateOrReadClientCertFile(username string) (string, error) {
+	clientCertPath := path.Join(m.certPath, username+".client.cert")
+	clientCertPem, clientKeyPEM, err := CreateOrReadCertPem(m.serverName, m.clientCaPem, m.clientCaKeyPem, clientCertPath)
+	if err != nil {
+		return "", err
+	}
+	kuicCertPath := path.Join(m.certPath, username+".kuic.cert")
+	flag := util.ExistsFile(kuicCertPath)
+	if flag {
+		return kuicCertPath, err
+	}
+	err = util.WriteBytesFile(kuicCertPath, m.serverCaPem, clientCertPem, clientKeyPEM)
+	if err != nil {
+		return "", err
+	}
+	return kuicCertPath, nil
+}

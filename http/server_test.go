@@ -30,6 +30,12 @@ func TestServerAAA(t *testing.T) {
 		time.Sleep(time.Second * 3)
 		clientCert, err := manager.CreateClientCert("abc")
 		log.Println(err)
+
+		file, err := manager.CreateOrReadClientCertFile("abc")
+		if err != nil {
+			return
+		}
+		log.Println(file)
 		client, err := server.GetTlsHttpClient("127.0.0.1:2563", clientCert)
 
 		log.Println("======000=======", client, err)
