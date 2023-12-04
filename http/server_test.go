@@ -35,7 +35,11 @@ func TestServerAAA(t *testing.T) {
 		if err != nil {
 			return
 		}
-		log.Println(file)
+		cert, c, err := cert.ParseClientKuicCertFile(file)
+		if err != nil {
+			return
+		}
+		log.Println(file, cert, c)
 		client, err := server.GetTlsHttpClient("127.0.0.1:2563", clientCert)
 
 		log.Println("======000=======", client, err)

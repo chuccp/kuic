@@ -106,21 +106,25 @@ func ParseClientKuicCertFile(certPath string) (string, *Certificate, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	return ParseClientKuicCertBytes(data)
+	certificate, err := ParseClientKuicCertBytes(data)
+	if err != nil {
+		return "", nil, err
+	}
+	return certPath, certificate, nil
 }
-func ParseClientKuicCertBytes(data []byte) (string, *Certificate, error) {
+func ParseClientKuicCertBytes(data []byte) (*Certificate, error) {
 	serverCaBlock, rest := pem.Decode(data)
 	certBlock, rest := pem.Decode(rest)
 	keyBlock, _ := pem.Decode(rest)
 	cert, err := tls.X509KeyPair(pem.EncodeToMemory(certBlock), pem.EncodeToMemory(keyBlock))
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	ce, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	serverName := ce.DNSNames[0]
 	certificate := &Certificate{Cert: &cert, CaPem: pem.EncodeToMemory(serverCaBlock), ServerName: serverName}
-	return certPath, certificate, nil
+	return certificate, nil
 }
