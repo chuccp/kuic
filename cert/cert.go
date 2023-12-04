@@ -19,16 +19,16 @@ type Cert struct {
 	CERT    []byte
 }
 
-func generateCert(subject *pkix.Name, parent *Cert, bits int, isCA bool) (cert *Cert, err error) {
+func generateCert(subject *pkix.Name, parent *Cert, SubjectKeyIds string, bits int, isCA bool) (cert *Cert, err error) {
 
-	return generateCertForDNSNames(subject, parent, []string{"localhost"}, bits, isCA)
+	return generateCertForDNSNames(subject, parent, []string{"localhost"}, SubjectKeyIds, bits, isCA)
 }
 
-func generateCa(subject *pkix.Name, bits int) (cert *Cert, err error) {
-	return generateCertForDNSNames(subject, nil, []string{}, bits, true)
+func generateCa(subject *pkix.Name, SubjectKeyId string, bits int) (cert *Cert, err error) {
+	return generateCertForDNSNames(subject, nil, []string{}, SubjectKeyId, bits, true)
 }
 
-func generateCertForDNSNames(subject *pkix.Name, parent *Cert, DNSNames []string, bits int, isCA bool) (cert *Cert, err error) {
+func generateCertForDNSNames(subject *pkix.Name, parent *Cert, DNSNames []string, SubjectKeyId string, bits int, isCA bool) (cert *Cert, err error) {
 	cert = &Cert{}
 	cert.CertKey, err = rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
@@ -46,7 +46,7 @@ func generateCertForDNSNames(subject *pkix.Name, parent *Cert, DNSNames []string
 		cert.CSR.BasicConstraintsValid = true
 	} else {
 		cert.CSR.KeyUsage = x509.KeyUsageDigitalSignature
-		cert.CSR.SubjectKeyId = []byte("abc")
+		cert.CSR.SubjectKeyId = []byte(SubjectKeyId)
 		cert.CSR.DNSNames = DNSNames
 	}
 	if subject != nil {
@@ -91,7 +91,7 @@ func CreateCert(keyPath string, certPath string, parent *Cert) error {
 	if parent != nil {
 		parent.CSR.PublicKey = nil
 	}
-	cert, err := generateCert(nil, parent, 4096, false)
+	cert, err := generateCert(nil, parent, "kuic", 4096, false)
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(cert.CertKey)})
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.CERT})
 	err = util.WriteFile(keyPath, keyPEM)
@@ -102,11 +102,11 @@ func CreateCert(keyPath string, certPath string, parent *Cert) error {
 }
 
 func CreateCertGroup(subject *pkix.Name, caPath, certPath, keyPath string) error {
-	CA, err := generateCert(subject, nil, 4096, true)
+	CA, err := generateCert(subject, nil, "kuic", 4096, true)
 	if err != nil {
 		return err
 	}
-	cert, err := generateCert(subject, CA, 4096, false)
+	cert, err := generateCert(subject, CA, "kuic", 4096, false)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func createCaAndCert() (CA *Cert, cert *Cert, err error) {
 		OrganizationalUnit: []string{"Freedom"},
 		CommonName:         "share",
 	}
-	CA, err = generateCa(subject, 4096)
+	CA, err = generateCa(subject, "kuic", 4096)
 	if err != nil {
 		return
 	}
@@ -142,7 +142,7 @@ func createCaAndCert() (CA *Cert, cert *Cert, err error) {
 		CommonName:         "share-0",
 	}
 	serverName := util.ServerName(CA.CERT)
-	cert, err = generateCertForDNSNames(subject, CA, []string{serverName}, 4096, false)
+	cert, err = generateCertForDNSNames(subject, CA, []string{serverName}, "kuic", 4096, false)
 	if err != nil {
 		return
 	}
@@ -155,7 +155,7 @@ func createCa() (CA *Cert, err error) {
 		OrganizationalUnit: []string{"Freedom"},
 		CommonName:         "share",
 	}
-	CA, err = generateCa(subject, 4096)
+	CA, err = generateCa(subject, "kuic", 4096)
 	if err != nil {
 		return
 	}
@@ -168,7 +168,7 @@ func createClientCaAndCert(serverName string) (CA *Cert, cert *Cert, err error) 
 		OrganizationalUnit: []string{"Freedom"},
 		CommonName:         "share",
 	}
-	CA, err = generateCa(subject, 4096)
+	CA, err = generateCa(subject, "kuic", 4096)
 	if err != nil {
 		return
 	}
@@ -178,7 +178,7 @@ func createClientCaAndCert(serverName string) (CA *Cert, cert *Cert, err error) 
 		OrganizationalUnit: []string{"Freedom-0"},
 		CommonName:         "share-0",
 	}
-	cert, err = generateCertForDNSNames(subject, CA, []string{serverName}, 4096, false)
+	cert, err = generateCertForDNSNames(subject, CA, []string{serverName}, "kuic", 4096, false)
 	if err != nil {
 		return
 	}
@@ -252,7 +252,7 @@ func CreateOrReadCaPem(savePath string) (caPem []byte, keyPem []byte, err error)
 		OrganizationalUnit: []string{"Freedom"},
 		CommonName:         "share",
 	}
-	cert, err := generateCa(subject, 4096)
+	cert, err := generateCa(subject, "kuic", 4096)
 
 	caPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.CERT})
 	keyPem = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(cert.CertKey)})
@@ -263,7 +263,7 @@ func CreateOrReadCaPem(savePath string) (caPem []byte, keyPem []byte, err error)
 	return
 }
 
-func CreateOrReadCertPem(serverName string, caPem []byte, keyPem []byte, certPath string) (certPem []byte, keyPEM []byte, err error) {
+func CreateOrReadCertPem(serverName string, username string, caPem []byte, keyPem []byte, certPath string) (certPem []byte, keyPEM []byte, err error) {
 	flag := util.ExistsFile(certPath)
 	if flag {
 		var data []byte
@@ -295,7 +295,7 @@ func CreateOrReadCertPem(serverName string, caPem []byte, keyPem []byte, certPat
 		OrganizationalUnit: []string{"Freedom-0"},
 		CommonName:         "share-0",
 	}
-	cert, err := generateCertForDNSNames(subject, CA, []string{serverName}, 4096, false)
+	cert, err := generateCertForDNSNames(subject, CA, []string{serverName}, username, 4096, false)
 	certPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.CERT})
 	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(cert.CertKey)})
 	err = util.WriteBytesFile(certPath, certPem, keyPEM)
@@ -417,7 +417,7 @@ func ReadKuicCert(certPath string) (ca *x509.Certificate, cert *tls.Certificate,
 }
 
 func CreateCertAndSubject(keyPath string, certPath string, subject *pkix.Name) error {
-	cert, err := generateCert(subject, nil, 4096, true)
+	cert, err := generateCert(subject, nil, "kuic", 4096, true)
 	if err != nil {
 		return err
 	}

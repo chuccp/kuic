@@ -12,6 +12,7 @@ type Certificate struct {
 	Cert       *tls.Certificate
 	CaPem      []byte
 	ServerName string
+	UserName   string
 }
 
 type Manager struct {
@@ -42,7 +43,7 @@ func (m *Manager) Init() (err error) {
 		return
 	}
 	m.serverName = util.ServerName(ca.Raw)
-	m.serverCertPem, m.serverCertKeyPEM, err = CreateOrReadCertPem(m.serverName, m.serverCaPem, m.serverCaKeyPem, path.Join(m.certPath, "server.cert"))
+	m.serverCertPem, m.serverCertKeyPEM, err = CreateOrReadCertPem(m.serverName, "kuic", m.serverCaPem, m.serverCaKeyPem, path.Join(m.certPath, "server.cert"))
 	cert, err := tls.X509KeyPair(m.serverCertPem, m.serverCertKeyPEM)
 	if err != nil {
 		return
@@ -64,7 +65,7 @@ func (m *Manager) GetCertPool() *x509.CertPool {
 }
 func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 	clientCertPath := path.Join(m.certPath, username+".client.cert")
-	clientCertPem, clientKeyPEM, err := CreateOrReadCertPem(m.serverName, m.clientCaPem, m.clientCaKeyPem, clientCertPath)
+	clientCertPem, clientKeyPEM, err := CreateOrReadCertPem(m.serverName, username, m.clientCaPem, m.clientCaKeyPem, clientCertPath)
 	if err != nil {
 		return nil, err
 	}
@@ -73,13 +74,13 @@ func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 		return nil, err
 	}
 
-	certificate := &Certificate{Cert: &cert, CaPem: m.serverCaPem, ServerName: m.serverName}
+	certificate := &Certificate{Cert: &cert, CaPem: m.serverCaPem, ServerName: m.serverName, UserName: username}
 	return certificate, nil
 }
 
 func (m *Manager) CreateOrReadClientKuicCertFile(username string) (string, *Certificate, error) {
 	clientCertPath := path.Join(m.certPath, username+".client.cert")
-	clientCertPem, clientKeyPEM, err := CreateOrReadCertPem(m.serverName, m.clientCaPem, m.clientCaKeyPem, clientCertPath)
+	clientCertPem, clientKeyPEM, err := CreateOrReadCertPem(m.serverName, username, m.clientCaPem, m.clientCaKeyPem, clientCertPath)
 	if err != nil {
 		return "", nil, err
 	}
@@ -96,7 +97,7 @@ func (m *Manager) CreateOrReadClientKuicCertFile(username string) (string, *Cert
 	if err != nil {
 		return "", nil, err
 	}
-	certificate := &Certificate{Cert: &cert, CaPem: m.serverCaPem, ServerName: m.serverName}
+	certificate := &Certificate{Cert: &cert, CaPem: m.serverCaPem, ServerName: m.serverName, UserName: username}
 	return kuicCertPath, certificate, nil
 }
 
@@ -125,6 +126,7 @@ func ParseClientKuicCertBytes(data []byte) (*Certificate, error) {
 		return nil, err
 	}
 	serverName := ce.DNSNames[0]
-	certificate := &Certificate{Cert: &cert, CaPem: pem.EncodeToMemory(serverCaBlock), ServerName: serverName}
+	username := string(ce.SubjectKeyId)
+	certificate := &Certificate{Cert: &cert, CaPem: pem.EncodeToMemory(serverCaBlock), ServerName: serverName, UserName: username}
 	return certificate, nil
 }
