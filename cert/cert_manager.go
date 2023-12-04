@@ -77,20 +77,50 @@ func (m *Manager) CreateClientCert(username string) (*Certificate, error) {
 	return certificate, nil
 }
 
-func (m *Manager) CreateOrReadClientCertFile(username string) (string, error) {
+func (m *Manager) CreateOrReadClientKuicCertFile(username string) (string, *Certificate, error) {
 	clientCertPath := path.Join(m.certPath, username+".client.cert")
 	clientCertPem, clientKeyPEM, err := CreateOrReadCertPem(m.serverName, m.clientCaPem, m.clientCaKeyPem, clientCertPath)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	kuicCertPath := path.Join(m.certPath, username+".kuic.cert")
 	flag := util.ExistsFile(kuicCertPath)
 	if flag {
-		return kuicCertPath, err
+		return kuicCertPath, nil, err
 	}
 	err = util.WriteBytesFile(kuicCertPath, m.serverCaPem, clientCertPem, clientKeyPEM)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return kuicCertPath, nil
+	cert, err := tls.X509KeyPair(clientCertPem, clientKeyPEM)
+	if err != nil {
+		return "", nil, err
+	}
+	certificate := &Certificate{Cert: &cert, CaPem: m.serverCaPem, ServerName: m.serverName}
+	return kuicCertPath, certificate, nil
+}
+
+func ParseClientKuicCertFile(certPath string) (string, *Certificate, error) {
+	var data []byte
+	data, err := util.ReadFile(certPath)
+	if err != nil {
+		return "", nil, err
+	}
+	return ParseClientKuicCertBytes(data)
+}
+func ParseClientKuicCertBytes(data []byte) (string, *Certificate, error) {
+	serverCaBlock, rest := pem.Decode(data)
+	certBlock, rest := pem.Decode(rest)
+	keyBlock, _ := pem.Decode(rest)
+	cert, err := tls.X509KeyPair(pem.EncodeToMemory(certBlock), pem.EncodeToMemory(keyBlock))
+	if err != nil {
+		return "", nil, err
+	}
+	ce, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return "", nil, err
+	}
+	serverName := ce.DNSNames[0]
+	certificate := &Certificate{Cert: &cert, CaPem: pem.EncodeToMemory(serverCaBlock), ServerName: serverName}
+	return certPath, certificate, nil
 }

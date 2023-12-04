@@ -31,7 +31,7 @@ func TestServerAAA(t *testing.T) {
 		clientCert, err := manager.CreateClientCert("abc")
 		log.Println(err)
 
-		file, err := manager.CreateOrReadClientCertFile("abc")
+		file, _, err := manager.CreateOrReadClientKuicCertFile("aaa")
 		if err != nil {
 			return
 		}
