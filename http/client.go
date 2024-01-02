@@ -27,7 +27,7 @@ type ClientPool struct {
 func (cp *ClientPool) GetHttpClient(address *net.UDPAddr) (*Client, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	key := address.String()
+	key := getKey(address)
 	client, ok := cp.addressMap[key]
 	if ok {
 		return client, nil
@@ -47,13 +47,12 @@ func (cp *ClientPool) GetHttpClient(address *net.UDPAddr) (*Client, error) {
 func (cp *ClientPool) GetTlsHttpClient(address *net.UDPAddr, cert *cert.Certificate) (*Client, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	addressStr := address.String()
-	key := addressStr + "_tls"
+	key := getTlsKey(address)
 	client, ok := cp.addressMap[key]
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientTlsConn(addressStr)
+	conn, err := cp.getClientTlsConn(address)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +67,8 @@ func (cp *ClientPool) GetTlsHttpClient(address *net.UDPAddr, cert *cert.Certific
 func (cp *ClientPool) ReverseProxy(address *net.UDPAddr) (*ReverseProxy, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	addressStr := address.String()
-	client, ok := cp.reverseProxyMap[addressStr]
+	key := getKey(address)
+	client, ok := cp.reverseProxyMap[key]
 	if ok {
 		return client, nil
 	}
@@ -81,10 +80,10 @@ func (cp *ClientPool) ReverseProxy(address *net.UDPAddr) (*ReverseProxy, error) 
 		if err != nil {
 			return nil, err
 		}
-		cp.reverseProxyMap[addressStr] = proxy
+		cp.reverseProxyMap[key] = proxy
 		go func() {
 			conn.WaitClose()
-			delete(cp.reverseProxyMap, addressStr)
+			delete(cp.reverseProxyMap, key)
 		}()
 		return proxy, err
 	}
@@ -93,12 +92,12 @@ func (cp *ClientPool) ReverseProxy(address *net.UDPAddr) (*ReverseProxy, error) 
 func (cp *ClientPool) TlsReverseProxy(address *net.UDPAddr, cert *cert.Certificate) (*ReverseProxy, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	addressStr := address.String()
-	client, ok := cp.tlsReverseProxyMap[addressStr]
+	key := getTlsKey(address)
+	client, ok := cp.tlsReverseProxyMap[key]
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientTlsConn(addressStr)
+	conn, err := cp.getClientTlsConn(address)
 	if err != nil {
 		return nil, err
 	} else {
@@ -106,10 +105,10 @@ func (cp *ClientPool) TlsReverseProxy(address *net.UDPAddr, cert *cert.Certifica
 		if err != nil {
 			return nil, err
 		}
-		cp.tlsReverseProxyMap[addressStr] = proxy
+		cp.tlsReverseProxyMap[key] = proxy
 		go func() {
 			conn.WaitClose()
-			delete(cp.tlsReverseProxyMap, addressStr)
+			delete(cp.tlsReverseProxyMap, key)
 		}()
 		return proxy, err
 	}
@@ -122,7 +121,7 @@ func (cp *ClientPool) GetClientConn(address *net.UDPAddr) (net.PacketConn, error
 	return cp.getClientConn(address)
 }
 func (cp *ClientPool) getClientConn(address *net.UDPAddr) (*kuic.BasicConn, error) {
-	key := address.String()
+	key := getKey(address)
 	conn, ok := cp.connMap[key]
 	if ok {
 		return conn, nil
@@ -138,8 +137,16 @@ func (cp *ClientPool) getClientConn(address *net.UDPAddr) (*kuic.BasicConn, erro
 	cp.connMap[key] = conn
 	return conn, nil
 }
-func (cp *ClientPool) getClientTlsConn(address string) (*kuic.BasicConn, error) {
-	key := address + "_tls"
+
+func getTlsKey(address *net.UDPAddr) string {
+	return address.String() + "_tls"
+}
+func getKey(address *net.UDPAddr) string {
+	return address.String()
+}
+
+func (cp *ClientPool) getClientTlsConn(address *net.UDPAddr) (*kuic.BasicConn, error) {
+	key := getTlsKey(address)
 	conn, ok := cp.connMap[key]
 	if ok {
 		return conn, nil
