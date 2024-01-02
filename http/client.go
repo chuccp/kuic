@@ -32,7 +32,7 @@ func (cp *ClientPool) GetHttpClient(address *net.UDPAddr) (*Client, error) {
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientConn(key)
+	conn, err := cp.getClientConn(address)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (cp *ClientPool) ReverseProxy(address *net.UDPAddr) (*ReverseProxy, error) 
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientConn(addressStr)
+	conn, err := cp.getClientConn(address)
 	if err != nil {
 		return nil, err
 	} else {
@@ -116,13 +116,14 @@ func (cp *ClientPool) TlsReverseProxy(address *net.UDPAddr, cert *cert.Certifica
 
 }
 
-func (cp *ClientPool) GetClientConn(address string) (net.PacketConn, error) {
+func (cp *ClientPool) GetClientConn(address *net.UDPAddr) (net.PacketConn, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
 	return cp.getClientConn(address)
 }
-func (cp *ClientPool) getClientConn(address string) (*kuic.BasicConn, error) {
-	conn, ok := cp.connMap[address]
+func (cp *ClientPool) getClientConn(address *net.UDPAddr) (*kuic.BasicConn, error) {
+	key := address.String()
+	conn, ok := cp.connMap[key]
 	if ok {
 		return conn, nil
 	}
@@ -132,9 +133,9 @@ func (cp *ClientPool) getClientConn(address string) (*kuic.BasicConn, error) {
 	}
 	go func() {
 		conn.WaitClose()
-		delete(cp.connMap, address)
+		delete(cp.connMap, key)
 	}()
-	cp.connMap[address] = conn
+	cp.connMap[key] = conn
 	return conn, nil
 }
 func (cp *ClientPool) getClientTlsConn(address string) (*kuic.BasicConn, error) {
