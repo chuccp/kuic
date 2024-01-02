@@ -5,6 +5,7 @@ import (
 	"encoding/pem"
 	"github.com/chuccp/kuic/cert"
 	"github.com/chuccp/kuic/util"
+	"net"
 	"testing"
 )
 
@@ -41,4 +42,8 @@ func TestReadQuic(t *testing.T) {
 
 	t.Log("!!!!!!!======2", key, err)
 
+}
+func TestClientMap(t *testing.T) {
+	var addressMap map[*net.UDPAddr]*Client
+	print(addressMap)
 }

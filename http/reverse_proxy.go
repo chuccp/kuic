@@ -16,8 +16,8 @@ type ReverseProxy struct {
 	reverseProxy *httputil.ReverseProxy
 }
 
-func NewReverseProxy(remoteAddress string, conn net.PacketConn) (*ReverseProxy, error) {
-	remoteUrl := "https://" + remoteAddress
+func NewReverseProxy(remoteAddress *net.UDPAddr, conn net.PacketConn) (*ReverseProxy, error) {
+	remoteUrl := "https://" + remoteAddress.String()
 	parseUrl, err := url.Parse(remoteUrl)
 	if err != nil {
 		return nil, err
@@ -31,8 +31,8 @@ func NewReverseProxy(remoteAddress string, conn net.PacketConn) (*ReverseProxy, 
 	return &ReverseProxy{reverseProxy: reverseProxy, remoteUrl: parseUrl}, nil
 }
 
-func NewTslReverseProxy(remoteAddress string, conn net.PacketConn, cert *cert.Certificate) (*ReverseProxy, error) {
-	remoteUrl := "https://" + remoteAddress
+func NewTslReverseProxy(remoteAddress *net.UDPAddr, conn net.PacketConn, cert *cert.Certificate) (*ReverseProxy, error) {
+	remoteUrl := "https://" + remoteAddress.String()
 	parseUrl, err := url.Parse(remoteUrl)
 	if err != nil {
 		return nil, err

@@ -29,7 +29,7 @@ func TestServer(t *testing.T) {
 
 		for {
 			time.Sleep(2 * time.Second)
-			get, err := server.GetHttpClient("192.168.1.123:5565")
+			get, err := server.GetHttpClient(StrToAddress("192.168.1.123:5565"))
 			if err != nil {
 				t.Fatal(err)
 			}

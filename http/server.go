@@ -16,17 +16,17 @@ type Server struct {
 	clientPool *ClientPool
 }
 
-func (server *Server) GetHttpClient(address string) (*Client, error) {
+func (server *Server) GetHttpClient(address *net.UDPAddr) (*Client, error) {
 	return server.clientPool.GetHttpClient(address)
 }
-func (server *Server) GetTlsHttpClient(address string, cert *cert.Certificate) (*Client, error) {
+func (server *Server) GetTlsHttpClient(address *net.UDPAddr, cert *cert.Certificate) (*Client, error) {
 	return server.clientPool.GetTlsHttpClient(address, cert)
 }
-func (server *Server) GetReverseProxy(address string) (*ReverseProxy, error) {
+func (server *Server) GetReverseProxy(address *net.UDPAddr) (*ReverseProxy, error) {
 	proxy, err := server.clientPool.ReverseProxy(address)
 	return proxy, err
 }
-func (server *Server) GetTlsReverseProxy(address string, cert *cert.Certificate) (*ReverseProxy, error) {
+func (server *Server) GetTlsReverseProxy(address *net.UDPAddr, cert *cert.Certificate) (*ReverseProxy, error) {
 	proxy, err := server.clientPool.TlsReverseProxy(address, cert)
 	return proxy, err
 }

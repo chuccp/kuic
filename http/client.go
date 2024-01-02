@@ -24,34 +24,36 @@ type ClientPool struct {
 	tlsReverseProxyMap map[string]*ReverseProxy
 }
 
-func (cp *ClientPool) GetHttpClient(address string) (*Client, error) {
+func (cp *ClientPool) GetHttpClient(address *net.UDPAddr) (*Client, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	client, ok := cp.addressMap[address]
-	if ok {
-		return client, nil
-	}
-	conn, err := cp.getClientConn(address)
-	if err != nil {
-		return nil, err
-	}
-	client = NewClient(address, conn)
-	cp.addressMap[address] = client
-	go func() {
-		conn.WaitClose()
-		delete(cp.addressMap, address)
-	}()
-	return client, nil
-}
-func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (*Client, error) {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
-	key := address + "_tls"
+	key := address.String()
 	client, ok := cp.addressMap[key]
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientTlsConn(address)
+	conn, err := cp.getClientConn(key)
+	if err != nil {
+		return nil, err
+	}
+	client = NewClient(address, conn)
+	cp.addressMap[key] = client
+	go func() {
+		conn.WaitClose()
+		delete(cp.addressMap, key)
+	}()
+	return client, nil
+}
+func (cp *ClientPool) GetTlsHttpClient(address *net.UDPAddr, cert *cert.Certificate) (*Client, error) {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	addressStr := address.String()
+	key := addressStr + "_tls"
+	client, ok := cp.addressMap[key]
+	if ok {
+		return client, nil
+	}
+	conn, err := cp.getClientTlsConn(addressStr)
 	if err != nil {
 		return nil, err
 	}
@@ -63,14 +65,15 @@ func (cp *ClientPool) GetTlsHttpClient(address string, cert *cert.Certificate) (
 	}()
 	return client, nil
 }
-func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
+func (cp *ClientPool) ReverseProxy(address *net.UDPAddr) (*ReverseProxy, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	client, ok := cp.reverseProxyMap[address]
+	addressStr := address.String()
+	client, ok := cp.reverseProxyMap[addressStr]
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientConn(address)
+	conn, err := cp.getClientConn(addressStr)
 	if err != nil {
 		return nil, err
 	} else {
@@ -78,23 +81,24 @@ func (cp *ClientPool) ReverseProxy(address string) (*ReverseProxy, error) {
 		if err != nil {
 			return nil, err
 		}
-		cp.reverseProxyMap[address] = proxy
+		cp.reverseProxyMap[addressStr] = proxy
 		go func() {
 			conn.WaitClose()
-			delete(cp.reverseProxyMap, address)
+			delete(cp.reverseProxyMap, addressStr)
 		}()
 		return proxy, err
 	}
 
 }
-func (cp *ClientPool) TlsReverseProxy(address string, cert *cert.Certificate) (*ReverseProxy, error) {
+func (cp *ClientPool) TlsReverseProxy(address *net.UDPAddr, cert *cert.Certificate) (*ReverseProxy, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	client, ok := cp.tlsReverseProxyMap[address]
+	addressStr := address.String()
+	client, ok := cp.tlsReverseProxyMap[addressStr]
 	if ok {
 		return client, nil
 	}
-	conn, err := cp.getClientTlsConn(address)
+	conn, err := cp.getClientTlsConn(addressStr)
 	if err != nil {
 		return nil, err
 	} else {
@@ -102,10 +106,10 @@ func (cp *ClientPool) TlsReverseProxy(address string, cert *cert.Certificate) (*
 		if err != nil {
 			return nil, err
 		}
-		cp.tlsReverseProxyMap[address] = proxy
+		cp.tlsReverseProxyMap[addressStr] = proxy
 		go func() {
 			conn.WaitClose()
-			delete(cp.tlsReverseProxyMap, address)
+			delete(cp.tlsReverseProxyMap, addressStr)
 		}()
 		return proxy, err
 	}
@@ -156,7 +160,7 @@ func NewClientPool(baseServer kuic.BaseServer) *ClientPool {
 }
 
 type Client struct {
-	address string
+	address *net.UDPAddr
 	conn    net.PacketConn
 	client  *http.Client
 }
@@ -185,7 +189,8 @@ func (c *Client) GetRaw(path string) (io.ReadCloser, error) {
 	if strings.HasPrefix(path, "/") {
 		path = path[1:]
 	}
-	url := "https://" + c.address + "/" + path
+	address := c.address.String()
+	url := "https://" + address + "/" + path
 	get, err := c.client.Get(url)
 	if err != nil {
 		return nil, err
@@ -196,7 +201,8 @@ func (c *Client) GetResponse(path string) (*http.Response, error) {
 	if strings.HasPrefix(path, "/") {
 		path = path[1:]
 	}
-	url := "https://" + c.address + "/" + path
+	address := c.address.String()
+	url := "https://" + address + "/" + path
 	resp, err := c.client.Get(url)
 	return resp, err
 }
@@ -223,7 +229,8 @@ func (c *Client) PostJsonRaw(path string, json []byte) (string, error) {
 	if strings.HasPrefix(path, "/") {
 		path = path[1:]
 	}
-	url := "https://" + c.address + "/" + path
+	address := c.address.String()
+	url := "https://" + address + "/" + path
 	body := bytes.NewReader(json)
 	get, err := c.client.Post(url, "application/json", body)
 	if err != nil {
@@ -236,14 +243,14 @@ func (c *Client) PostJsonRaw(path string, json []byte) (string, error) {
 	return string(all), nil
 }
 
-func NewClient(address string, conn net.PacketConn) *Client {
+func NewClient(address *net.UDPAddr, conn net.PacketConn) *Client {
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
 	}
 	cl := http3.NewClient(conn, tlsConf)
 	return &Client{address: address, conn: conn, client: cl}
 }
-func NewKuicClient(address string, cer *cert.Certificate, conn net.PacketConn) *Client {
+func NewKuicClient(address *net.UDPAddr, cer *cert.Certificate, conn net.PacketConn) *Client {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(cer.CaPem)
 	tlsConfig := &tls.Config{
@@ -257,7 +264,7 @@ func NewKuicClient(address string, cer *cert.Certificate, conn net.PacketConn) *
 	cl := http3.NewClient(conn, tlsConfig)
 	return &Client{address: address, conn: conn, client: cl}
 }
-func NewTlsClient(address string, tlsConf *tls.Config, conn net.PacketConn) *Client {
+func NewTlsClient(address *net.UDPAddr, tlsConf *tls.Config, conn net.PacketConn) *Client {
 	cl := http3.NewClient(conn, tlsConf)
 	return &Client{address: address, conn: conn, client: cl}
 }

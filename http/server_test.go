@@ -3,10 +3,16 @@ package http
 import (
 	"github.com/chuccp/kuic/cert"
 	"log"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 )
+
+func StrToAddress(address string) *net.UDPAddr {
+	addr, _ := net.ResolveUDPAddr("udp", address)
+	return addr
+}
 
 func TestServerAAA(t *testing.T) {
 	serveMux := http.NewServeMux()
@@ -40,7 +46,9 @@ func TestServerAAA(t *testing.T) {
 			return
 		}
 		log.Println(file, cert, c)
-		client, err := server.GetTlsHttpClient("127.0.0.1:2563", clientCert)
+		addr, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2563")
+
+		client, err := server.GetTlsHttpClient(addr, clientCert)
 
 		log.Println("======000=======", client, err)
 		if err != nil {

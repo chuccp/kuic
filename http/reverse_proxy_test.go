@@ -17,7 +17,7 @@ func TestReverseProxyServer(t *testing.T) {
 
 	serveMux := http.NewServeMux()
 
-	proxy, err := ser.GetReverseProxy("127.0.0.1:2156")
+	proxy, err := ser.GetReverseProxy(StrToAddress("127.0.0.1:2156"))
 	if err != nil {
 		return
 	}
